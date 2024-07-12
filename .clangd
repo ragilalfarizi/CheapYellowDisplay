@@ -1,0 +1,11 @@
+CompileFlags:
+  Remove: [
+    -fno-shrink-wrap,
+    -W*,
+    -fstrict-volatile-bitfields,
+    -fno-tree-switch-conversion, 
+    -mlongcalls
+  ]
+
+Diagnostics:
+  Suppress: ["pp_file_not_found"]
