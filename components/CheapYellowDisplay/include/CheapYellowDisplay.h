@@ -11,6 +11,10 @@
 #include "esp_log.h"
 #include "esp_lcd_ili9341.h"
 #include "esp_lcd_types.h"
+#include "esp_lcd_touch_xpt2046.h"
+#include "lvgl.h"
+#include "esp_lvgl_port.h"
+#include "esp_check.h"
 
 /* ========== SPI TFT PIN CONNECTION ========== */
 // The TFT display communicates with the board using SPI communication protocol
@@ -56,5 +60,8 @@
 
 /* ================================================= */
 esp_err_t LCD_init(void);
+esp_err_t touch_init(void);
+esp_err_t app_lvgl_init(void);
+
 
 #endif  // !CHEAPYELLOWDISPLAY_H_
