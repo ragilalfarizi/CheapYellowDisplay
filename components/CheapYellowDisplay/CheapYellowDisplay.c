@@ -2,12 +2,12 @@
 
 static const char *TAG = "LCD";
 
-static esp_lcd_panel_io_handle_t io_handle    = NULL;
-static esp_lcd_panel_handle_t    panel_handle = NULL;
-static esp_lcd_touch_handle_t    tp           = NULL;
+esp_lcd_panel_io_handle_t io_handle    = NULL;
+esp_lcd_panel_handle_t    panel_handle = NULL;
+esp_lcd_touch_handle_t    tp           = NULL;
 
 /* LVGL display and touch */
-static lv_display_t *lvgl_disp = NULL;
+lv_display_t      *lvgl_disp        = NULL;
 static lv_indev_t *lvgl_touch_indev = NULL;
 
 esp_err_t LCD_init(void) {
@@ -58,7 +58,7 @@ esp_err_t LCD_init(void) {
 
   ESP_ERROR_CHECK(esp_lcd_panel_reset(panel_handle));
   ESP_ERROR_CHECK(esp_lcd_panel_init(panel_handle));
-  ESP_ERROR_CHECK(esp_lcd_panel_mirror(panel_handle, true, false));
+  ESP_ERROR_CHECK(esp_lcd_panel_mirror(panel_handle, false, false));
 
   // user can flush pre-defined pattern to the screen before we turn on the
   // screen or backlight
@@ -70,6 +70,7 @@ esp_err_t LCD_init(void) {
   return ESP_OK;
 }
 
+// FIX: this still doesn't work
 esp_err_t touch_init(void) {
   static esp_lcd_panel_io_handle_t    tp_io_handle = NULL;
   const esp_lcd_panel_io_spi_config_t tp_io_config =
@@ -85,7 +86,7 @@ esp_err_t touch_init(void) {
       .flags =
           {
               .swap_xy  = 0,
-              .mirror_x = 0,
+              .mirror_x = 1,
               .mirror_y = 0,
           },
   };
@@ -96,6 +97,7 @@ esp_err_t touch_init(void) {
   return ESP_OK;
 }
 
+// TODO: flip the screen 180 degrees
 esp_err_t app_lvgl_init(void) {
   /* Initialize LVGL */
   const lvgl_port_cfg_t lvgl_cfg = {
@@ -122,7 +124,7 @@ esp_err_t app_lvgl_init(void) {
       .rotation =
           {
               .swap_xy  = false,
-              .mirror_x = true,
+              .mirror_x = false,
               .mirror_y = true,
           },
       .flags = {
