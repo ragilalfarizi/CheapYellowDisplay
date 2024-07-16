@@ -49,6 +49,31 @@ static void app_main_display(void) {
   lvgl_port_unlock();
 }
 
+void change_bg_color(lv_color_t color, const char *text, uint32_t delay) {
+  lv_obj_t *scr = lv_screen_active();
+  lv_obj_clean(scr);
+
+  static lv_style_t style;
+  lv_style_init(&style);
+  lv_style_set_bg_color(&style, color);
+
+  /* Apply the style to the screen */
+  lv_obj_add_style(scr, &style, 0);
+
+  /* Create a style for the text */
+  static lv_style_t style_text;
+  lv_style_init(&style_text);
+  lv_style_set_text_color(&style_text, lv_color_white());
+
+  /* Create a label and set its text */
+  lv_obj_t *label = lv_label_create(scr);
+  lv_label_set_text(label, text);
+  lv_obj_add_style(label, &style_text, 0);  // Apply the text style to the label
+  lv_obj_align(label, LV_ALIGN_CENTER, 0, 0);
+
+  vTaskDelay(pdMS_TO_TICKS(delay));
+}
+
 void app_main(void) {
   /* LCD HW initialization */
   LCD_init();
@@ -60,5 +85,15 @@ void app_main(void) {
   app_lvgl_init();
 
   /* Show LVGL objects */
-  app_main_display();
+  // app_main_display();
+
+  while (1) {
+    lv_task_handler();
+
+    change_bg_color((lv_color_hex(0xFF0000)), "Background is Red", 3000);
+    change_bg_color((lv_color_hex(0x00FF00)), "Background is Green", 3000);
+    change_bg_color((lv_color_hex(0x0000FF)), "Background is Blue", 3000);
+    change_bg_color((lv_color_hex(0xFFFFFF)), "Background is White", 3000);
+    change_bg_color((lv_color_hex(0x000000)), "Background is Black", 3000);
+  }
 }
