@@ -59,6 +59,8 @@ void app_main(void) {
   /* LVGL initialization */
   app_lvgl_init();
 
+  lv_disp_set_rotation(lvgl_disp, LV_DISP_ROTATION_180);
+
   /* Show LVGL objects */
   app_main_display();
 }
