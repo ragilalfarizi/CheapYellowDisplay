@@ -97,7 +97,6 @@ esp_err_t touch_init(void) {
   return ESP_OK;
 }
 
-// TODO: flip the screen 180 degrees
 esp_err_t app_lvgl_init(void) {
   /* Initialize LVGL */
   const lvgl_port_cfg_t lvgl_cfg = {
@@ -139,6 +138,8 @@ esp_err_t app_lvgl_init(void) {
       .handle = tp,
   };
   lvgl_touch_indev = lvgl_port_add_touch(&touch_cfg);
+
+  lv_disp_set_rotation(lvgl_disp, LV_DISPLAY_ROTATION_180);
 
   return ESP_OK;
 }
