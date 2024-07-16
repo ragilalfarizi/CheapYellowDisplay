@@ -3,14 +3,23 @@
 
 #include "driver/gpio.h"
 #include "driver/spi_master.h"
+#include "esp_check.h"
 #include "esp_err.h"
+#include "esp_lcd_ili9341.h"
 #include "esp_lcd_panel_interface.h"
 #include "esp_lcd_panel_io.h"
 #include "esp_lcd_panel_ops.h"
 #include "esp_lcd_panel_vendor.h"
-#include "esp_log.h"
-#include "esp_lcd_ili9341.h"
+#include "esp_lcd_touch_xpt2046.h"
 #include "esp_lcd_types.h"
+#include "esp_log.h"
+#include "esp_lvgl_port.h"
+#include "lvgl.h"
+
+extern esp_lcd_panel_io_handle_t io_handle;
+extern esp_lcd_panel_handle_t    panel_handle;
+extern esp_lcd_touch_handle_t    tp;
+extern lv_display_t             *lvgl_disp;
 
 /* ========== SPI TFT PIN CONNECTION ========== */
 // The TFT display communicates with the board using SPI communication protocol
@@ -56,5 +65,7 @@
 
 /* ================================================= */
 esp_err_t LCD_init(void);
+esp_err_t touch_init(void);
+esp_err_t app_lvgl_init(void);
 
 #endif  // !CHEAPYELLOWDISPLAY_H_
