@@ -1,4 +1,5 @@
 #include "CheapYellowDisplay.h"
+#include "UI_manager.h"
 
 static void _app_button_cb(lv_event_t *e) {
   lv_disp_rotation_t rotation = lv_disp_get_rotation(lvgl_disp);
@@ -78,24 +79,26 @@ void app_main(void) {
   /* LCD HW initialization */
   LCD_init();
 
-  /* Touch initialization */
-  touch_init();
-
-  /* LVGL initialization */
-  app_lvgl_init();
-
-  lv_disp_set_rotation(lvgl_disp, LV_DISP_ROTATION_180);
-
-  /* Show LVGL objects */
-  // app_main_display();
-
-  while (1) {
-    lv_task_handler();
-
-    change_bg_color((lv_color_hex(0xFF0000)), "Background is Red", 3000);
-    change_bg_color((lv_color_hex(0x00FF00)), "Background is Green", 3000);
-    change_bg_color((lv_color_hex(0x0000FF)), "Background is Blue", 3000);
-    change_bg_color((lv_color_hex(0xFFFFFF)), "Background is White", 3000);
-    change_bg_color((lv_color_hex(0x000000)), "Background is Black", 3000);
-  }
+  SDCard_init();
+  //
+  // /* Touch initialization */
+  // touch_init();
+  //
+  // /* LVGL initialization */
+  // app_lvgl_init();
+  //
+  // lv_disp_set_rotation(lvgl_disp, LV_DISP_ROTATION_180);
+  //
+  // /* Show LVGL objects */
+  // // app_main_display();
+  //
+  // while (1) {
+  //   lv_task_handler();
+  //
+  //   change_bg_color((lv_color_hex(0xFF0000)), "Background is Red", 3000);
+  //   change_bg_color((lv_color_hex(0x00FF00)), "Background is Green", 3000);
+  //   change_bg_color((lv_color_hex(0x0000FF)), "Background is Blue", 3000);
+  //   change_bg_color((lv_color_hex(0xFFFFFF)), "Background is White", 3000);
+  //   change_bg_color((lv_color_hex(0x000000)), "Background is Black", 3000);
+  // }
 }

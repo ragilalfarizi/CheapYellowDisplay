@@ -27,7 +27,7 @@ esp_err_t LCD_init(void) {
       .quadwp_io_num   = -1,  // not used
       .max_transfer_sz = TFT_H_RES * 80 * sizeof(uint16_t),
   };
-  ESP_ERROR_CHECK(spi_bus_initialize(SPI2_HOST, &buscfg, SPI_DMA_CH_AUTO));
+  ESP_ERROR_CHECK(spi_bus_initialize(SPI3_HOST, &buscfg, SPI_DMA_CH_AUTO));
 
   // 2. Allocate an LCD IO Device handle from the SPI Bus
   ESP_LOGI(TAG, "Allocating LCD IO Device handle");
@@ -41,7 +41,7 @@ esp_err_t LCD_init(void) {
       .spi_mode          = 0,
       .trans_queue_depth = 10,
   };
-  ESP_ERROR_CHECK(esp_lcd_new_panel_io_spi((esp_lcd_spi_bus_handle_t)SPI2_HOST,
+  ESP_ERROR_CHECK(esp_lcd_new_panel_io_spi((esp_lcd_spi_bus_handle_t)SPI3_HOST,
                                            &io_config, &io_handle));
 
   // 3. install LCD Controller Driver
@@ -75,7 +75,7 @@ esp_err_t touch_init(void) {
   static esp_lcd_panel_io_handle_t    tp_io_handle = NULL;
   const esp_lcd_panel_io_spi_config_t tp_io_config =
       ESP_LCD_TOUCH_IO_SPI_XPT2046_CONFIG(XPT2046_CS_PIN);
-  ESP_ERROR_CHECK(esp_lcd_new_panel_io_spi((esp_lcd_spi_bus_handle_t)SPI2_HOST,
+  ESP_ERROR_CHECK(esp_lcd_new_panel_io_spi((esp_lcd_spi_bus_handle_t)SPI3_HOST,
                                            &tp_io_config, &tp_io_handle));
 
   const esp_lcd_touch_config_t tp_cfg = {
