@@ -1,4 +1,4 @@
-#include "CheapYellowDisplay.h"
+#include "CYD_display.h"
 
 static const char *TAG = "LCD";
 

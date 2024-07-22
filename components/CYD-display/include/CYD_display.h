@@ -1,5 +1,5 @@
-#ifndef CHEAPYELLOWDISPLAY_H_
-#define CHEAPYELLOWDISPLAY_H_
+#ifndef CYD_display_H_
+#define CYD_display_H_
 
 #include "driver/gpio.h"
 #include "driver/spi_master.h"
@@ -49,6 +49,9 @@ extern lv_display_t             *lvgl_disp;
 #define LED_RED_PIN   4
 #define LED_GREEN_PIN 16
 #define LED_BLUE_PIN  17
+
+
+// TODO: Move below to SD Card Components
 
 /* ========== MicroSD PIN CONNECTION ========== */
 // The microSD card uses SPI communication protocol.

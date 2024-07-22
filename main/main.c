@@ -1,5 +1,6 @@
-#include "CheapYellowDisplay.h"
-#include "UI_manager.h"
+#include "CYD_display.h"
+#include "CYD_SDCard.h"
+#include "CYD_UI.h"
 
 LV_IMAGE_DECLARE(welcome);
 LV_IMAGE_DECLARE(menu);
