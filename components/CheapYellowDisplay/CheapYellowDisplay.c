@@ -133,11 +133,11 @@ esp_err_t app_lvgl_init(void) {
   lvgl_disp = lvgl_port_add_disp(&disp_cfg);
 
   /* Add touch input (for selected screen) */
-  const lvgl_port_touch_cfg_t touch_cfg = {
-      .disp   = lvgl_disp,
-      .handle = tp,
-  };
-  lvgl_touch_indev = lvgl_port_add_touch(&touch_cfg);
+  // const lvgl_port_touch_cfg_t touch_cfg = {
+  //     .disp   = lvgl_disp,
+  //     .handle = tp,
+  // };
+  // lvgl_touch_indev = lvgl_port_add_touch(&touch_cfg);
 
   lv_disp_set_rotation(lvgl_disp, LV_DISPLAY_ROTATION_180);
 
