@@ -8,4 +8,7 @@ CompileFlags:
   ]
 
 Diagnostics:
-  Suppress: ["pp_file_not_found"]
+  Suppress: [
+  pp_file_not_found,
+  unused-includes,
+  ]

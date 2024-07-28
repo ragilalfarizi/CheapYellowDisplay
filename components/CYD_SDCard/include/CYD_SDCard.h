@@ -1,5 +1,5 @@
-#ifndef UI_MANAGER_H_
-#define UI_MANAGER_H_
+#ifndef CYD_SDCARD_H_
+#define CYD_SDCARD_H_
 
 /* ========== MicroSD PIN CONNECTION ========== */
 // The microSD card uses SPI communication protocol.
@@ -11,15 +11,12 @@
 
 #define MOUNT_POINT "/sdcard"
 
-#include "esp_vfs_fat.h"
-#include "lvgl.h"
-#include "sdmmc_cmd.h"
 #include "driver/sdspi_host.h"
-#include "esp_vfs_fat.h"
-#include "sdmmc_cmd.h"
 #include "driver/spi_common.h"
 #include "esp_err.h"
+#include "esp_vfs_fat.h"
+#include "sdmmc_cmd.h"
 
 esp_err_t SDCard_init(void);
 
-#endif  // !UI_MANAGER_H_
+#endif  // !CYD_SDCARD_H_

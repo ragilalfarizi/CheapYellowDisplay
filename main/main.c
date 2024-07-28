@@ -1,104 +1,86 @@
-#include "CheapYellowDisplay.h"
-#include "UI_manager.h"
+#include "CYD_SDCard.h"
+#include "CYD_UI.h"
+#include "CYD_display.h"
 
-static void _app_button_cb(lv_event_t *e) {
-  lv_disp_rotation_t rotation = lv_disp_get_rotation(lvgl_disp);
-  rotation++;
-  if (rotation > LV_DISPLAY_ROTATION_270) {
-    rotation = LV_DISPLAY_ROTATION_0;
+static const char *TAG = "main";
+
+static void      slider_event_cb(lv_event_t *e);
+static lv_obj_t *slider_label;
+
+void lv_example_slider_1(void) {
+  /*Create a slider in the center of the display*/
+  lv_obj_t *slider = lv_slider_create(lv_screen_active());
+  lv_obj_center(slider);
+  lv_obj_add_event_cb(slider, slider_event_cb, LV_EVENT_VALUE_CHANGED, NULL);
+
+  lv_obj_set_style_anim_duration(slider, 2000, 0);
+  /*Create a label below the slider*/
+  slider_label = lv_label_create(lv_screen_active());
+  lv_label_set_text(slider_label, "0%");
+
+  lv_obj_align_to(slider_label, slider, LV_ALIGN_OUT_BOTTOM_MID, 0, 10);
+}
+
+static void slider_event_cb(lv_event_t *e) {
+  lv_obj_t *slider = lv_event_get_target(e);
+  char      buf[8];
+  lv_snprintf(buf, sizeof(buf), "%d%%", (int)lv_slider_get_value(slider));
+  lv_label_set_text(slider_label, buf);
+  lv_obj_align_to(slider_label, slider, LV_ALIGN_OUT_BOTTOM_MID, 0, 10);
+}
+
+static void dd_event_handler(lv_event_t *e) {
+  lv_event_code_t code = lv_event_get_code(e);
+  lv_obj_t       *obj  = lv_event_get_target(e);
+  if (code == LV_EVENT_VALUE_CHANGED) {
+    char buf[32];
+    lv_dropdown_get_selected_str(obj, buf, sizeof(buf));
+    LV_LOG_USER("Option: %s", buf);
   }
-
-  /* LCD HW rotation */
-  lv_disp_set_rotation(lvgl_disp, rotation);
 }
 
-static void app_main_display(void) {
-  lv_obj_t *scr = lv_scr_act();
+void lv_example_dropdown_1(void) {
+  /*Create a normal drop down list*/
+  lv_obj_t *dd = lv_dropdown_create(lv_screen_active());
+  lv_dropdown_set_options(dd,
+                          "Apple\n"
+                          "Banana\n"
+                          "Orange\n"
+                          "Cherry\n"
+                          "Grape\n"
+                          "Raspberry\n"
+                          "Melon\n"
+                          "Orange\n"
+                          "Lemon\n"
+                          "Nuts");
 
-  /* Task lock */
-  lvgl_port_lock(0);
-
-  /* Your LVGL objects code here .... */
-
-  /* Label */
-  lv_obj_t *label = lv_label_create(scr);
-  lv_obj_set_width(label, TFT_H_RES);
-  lv_obj_set_style_text_align(label, LV_TEXT_ALIGN_CENTER, 0);
-#if LVGL_VERSION_MAJOR == 8
-  lv_label_set_recolor(label, true);
-  lv_label_set_text(
-      label, "#FF0000 " LV_SYMBOL_BELL
-             " Hello world Espressif and LVGL " LV_SYMBOL_BELL
-             "#\n#FF9400 " LV_SYMBOL_WARNING
-             " For simplier initialization, use BSP " LV_SYMBOL_WARNING " #");
-#else
-  lv_label_set_text(label, LV_SYMBOL_BELL
-                    " Hello world Espressif and LVGL " LV_SYMBOL_BELL
-                    "\n " LV_SYMBOL_WARNING
-                    " For simplier initialization, use BSP " LV_SYMBOL_WARNING);
-#endif
-  lv_obj_align(label, LV_ALIGN_CENTER, 0, 20);
-
-  /* Button */
-  lv_obj_t *btn = lv_btn_create(scr);
-  label         = lv_label_create(btn);
-  lv_label_set_text_static(label, "Rotate screen");
-  lv_obj_align(btn, LV_ALIGN_BOTTOM_MID, 0, -30);
-  lv_obj_add_event_cb(btn, _app_button_cb, LV_EVENT_CLICKED, NULL);
-
-  /* Task unlock */
-  lvgl_port_unlock();
-}
-
-void change_bg_color(lv_color_t color, const char *text, uint32_t delay) {
-  lv_obj_t *scr = lv_screen_active();
-  lv_obj_clean(scr);
-
-  static lv_style_t style;
-  lv_style_init(&style);
-  lv_style_set_bg_color(&style, color);
-
-  /* Apply the style to the screen */
-  lv_obj_add_style(scr, &style, 0);
-
-  /* Create a style for the text */
-  static lv_style_t style_text;
-  lv_style_init(&style_text);
-  lv_style_set_text_color(&style_text, lv_color_white());
-
-  /* Create a label and set its text */
-  lv_obj_t *label = lv_label_create(scr);
-  lv_label_set_text(label, text);
-  lv_obj_add_style(label, &style_text, 0);  // Apply the text style to the label
-  lv_obj_align(label, LV_ALIGN_CENTER, 0, 0);
-
-  vTaskDelay(pdMS_TO_TICKS(delay));
+  lv_obj_align(dd, LV_ALIGN_TOP_MID, 0, 20);
+  lv_obj_add_event_cb(dd, dd_event_handler, LV_EVENT_ALL, NULL);
 }
 
 void app_main(void) {
+  lv_init();
+  
   /* LCD HW initialization */
+  ESP_LOGI(TAG, "Entering LCD_INIT");
   LCD_init();
 
-  SDCard_init();
-  //
+  // SDCard_init();
+
   // /* Touch initialization */
-  // touch_init();
-  //
+  ESP_LOGI(TAG, "Entering touch_init");
+  touch_init();
+
   // /* LVGL initialization */
-  // app_lvgl_init();
-  //
-  // lv_disp_set_rotation(lvgl_disp, LV_DISP_ROTATION_180);
-  //
-  // /* Show LVGL objects */
-  // // app_main_display();
-  //
-  // while (1) {
-  //   lv_task_handler();
-  //
-  //   change_bg_color((lv_color_hex(0xFF0000)), "Background is Red", 3000);
-  //   change_bg_color((lv_color_hex(0x00FF00)), "Background is Green", 3000);
-  //   change_bg_color((lv_color_hex(0x0000FF)), "Background is Blue", 3000);
-  //   change_bg_color((lv_color_hex(0xFFFFFF)), "Background is White", 3000);
-  //   change_bg_color((lv_color_hex(0x000000)), "Background is Black", 3000);
-  // }
+  ESP_LOGI(TAG, "Entering app_lvgl_init");
+  app_lvgl_init();
+
+  ESP_LOGI(TAG, "Entering create_image_example");
+  lv_example_slider_1();
+  lv_example_dropdown_1();
+  
+  while (1) {
+    lv_task_handler();
+    vTaskDelay(pdMS_TO_TICKS(10));
+  }
 }

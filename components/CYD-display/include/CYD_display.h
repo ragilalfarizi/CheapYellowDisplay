@@ -1,5 +1,5 @@
-#ifndef CHEAPYELLOWDISPLAY_H_
-#define CHEAPYELLOWDISPLAY_H_
+#ifndef CYD_display_H_
+#define CYD_display_H_
 
 #include "driver/gpio.h"
 #include "driver/spi_master.h"
@@ -10,17 +10,20 @@
 #include "esp_lcd_panel_io.h"
 #include "esp_lcd_panel_ops.h"
 #include "esp_lcd_panel_vendor.h"
+#include "esp_lcd_touch.h"
 #include "esp_lcd_touch_xpt2046.h"
 #include "esp_lcd_types.h"
 #include "esp_log.h"
 #include "esp_lvgl_port.h"
+#include "indev/lv_indev.h"
 #include "lvgl.h"
 
 extern esp_lcd_panel_io_handle_t io_handle;
 extern esp_lcd_panel_handle_t    panel_handle;
 extern esp_lcd_touch_handle_t    tp;
+extern esp_lcd_panel_io_handle_t tp_io_handle;
 extern lv_display_t             *lvgl_disp;
-
+extern lv_indev_t               *lvgl_touch_indev;
 /* ========== SPI TFT PIN CONNECTION ========== */
 // The TFT display communicates with the board using SPI communication protocol
 // (HSPI)
@@ -49,6 +52,8 @@ extern lv_display_t             *lvgl_disp;
 #define LED_RED_PIN   4
 #define LED_GREEN_PIN 16
 #define LED_BLUE_PIN  17
+
+// TODO: Move below to SD Card Components
 
 /* ========== MicroSD PIN CONNECTION ========== */
 // The microSD card uses SPI communication protocol.
