@@ -3,12 +3,13 @@
 
 #include "esp_err.h"
 #include "esp_log.h"
-#include "lvgl.h"
 #include "freertos/FreeRTOS.h"
+#include "lvgl.h"
 
-extern lv_obj_t *home_screen;
-extern lv_obj_t *search_screen;
-extern lv_obj_t *setting_screen;
+#define COLOR_PRIMARY   lv_color_hex(0x222831)
+#define COLOR_SECONDARY lv_color_hex(0x31363F)
+#define COLOR_TERTIARY  lv_color_hex(0x76ABAE)
+#define COLOR_ACCENT    lv_color_hex(0xEEEEEE)
 
 typedef enum {
   STARTUP,
@@ -17,11 +18,11 @@ typedef enum {
   SETTINGS,
 } screen_id_t;
 
-void setup_screens();
-
-static void menu_event_handler(lv_event_t *e);
-static void create_bottom_menu(lv_obj_t *parent);
-void create_startup_screen();
+void      setup_screens();
+void      create_startup_screen();
 lv_obj_t *create_screen(lv_color_t color);
+lv_obj_t *create_home_screen();
+lv_obj_t *create_search_screen();
+lv_obj_t *create_setting_screen();
 
 #endif  // !CYD_UI_H_
