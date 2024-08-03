@@ -4,6 +4,8 @@
 
 static const char *TAG = "main";
 
+// screen_t current_screen = STARTUP;
+
 static void      slider_event_cb(lv_event_t *e);
 static lv_obj_t *slider_label;
 
@@ -60,7 +62,7 @@ void lv_example_dropdown_1(void) {
 
 void app_main(void) {
   lv_init();
-  
+
   /* LCD HW initialization */
   ESP_LOGI(TAG, "Entering LCD_INIT");
   LCD_init();
@@ -75,10 +77,18 @@ void app_main(void) {
   ESP_LOGI(TAG, "Entering app_lvgl_init");
   app_lvgl_init();
 
-  ESP_LOGI(TAG, "Entering create_image_example");
-  lv_example_slider_1();
-  lv_example_dropdown_1();
-  
+  // /* Screen initialization */
+  // ESP_LOGI(TAG, "Entering startup screen");
+  // switch_screen(current_screen);
+
+  // ESP_LOGI(TAG, "Entering demo_screen");
+  // lv_example_slider_1();
+  // lv_example_dropdown_1();
+  // create_startup_screen();
+  // vTaskDelay(pdMS_TO_TICKS(2000));
+
+  setup_screens();
+
   while (1) {
     lv_task_handler();
     vTaskDelay(pdMS_TO_TICKS(10));
