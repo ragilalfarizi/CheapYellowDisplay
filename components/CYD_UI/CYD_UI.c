@@ -4,6 +4,7 @@
 static void menu_event_handler(lv_event_t *e);
 static void create_bottom_menu(lv_obj_t *parent);
 static void create_top_bar(lv_obj_t *parent);
+static void dot_pressed_cb(lv_event_t *e);
 
 /* GLOBAL VARIABLES DECLARATION */
 lv_obj_t *home_screen    = NULL;
@@ -15,7 +16,6 @@ void setup_screens() {
   search_screen  = create_search_screen();
   setting_screen = create_setting_screen();
 
-  // TODO: add startup screen to this
   create_startup_screen();
   vTaskDelay(pdMS_TO_TICKS(3000));
 
@@ -35,27 +35,74 @@ lv_obj_t *create_home_screen() {
   lv_obj_t *screen = lv_obj_create(NULL);
 
   // create_main_content();
+  // TODO: break this down into pieces, not just image
   lv_obj_set_style_bg_color(screen, lv_palette_main(LV_PALETTE_RED), 0);
+
+  // create top and bottom layer on top of main content
   create_top_bar(screen);
   create_bottom_menu(screen);
   return screen;
 }
 
+// TODO: move into separate file
 lv_obj_t *create_search_screen() {
-  lv_obj_t *screen = lv_obj_create(NULL);
+  // create style for search screen
+  static lv_style_t style_screen_search;
+  lv_style_init(&style_screen_search);
+  lv_style_set_bg_color(&style_screen_search, COLOR_PRIMARY);
 
-  // create_main_content();
-  lv_obj_set_style_bg_color(screen, lv_palette_main(LV_PALETTE_BLUE), 0);
+  lv_obj_t *screen = lv_obj_create(NULL);
+  lv_obj_add_style(screen, &style_screen_search, 0);
+
+  /* MAIN CONTENT ON SEARCH SCREEN */
+
+  // create radar
+  LV_IMAGE_DECLARE(icon_radar);
+  lv_obj_t *radar = lv_image_create(screen);
+  lv_image_set_src(radar, &icon_radar);
+  lv_obj_set_pos(radar, 4, 31);
+
+  /* CREATE CANVAS TO DRAW DOTS */
+  static lv_style_t style_dot;
+  lv_style_init(&style_dot);
+  lv_style_set_size(&style_dot, 15, 15);
+  lv_style_set_radius(&style_dot, LV_RADIUS_CIRCLE);
+  lv_style_set_bg_color(&style_dot, COLOR_TERTIARY);
+  lv_style_set_border_width(&style_dot, 0);
+
+  lv_obj_t *dot = lv_obj_create(radar);
+  lv_obj_add_style(dot, &style_dot, 0);
+
+  lv_obj_align(dot, LV_ALIGN_CENTER, 20, -50);
+  lv_obj_add_event_cb(dot, dot_pressed_cb, LV_EVENT_CLICKED, NULL);
+
+  /* CREATE TOP AND BOTTOM LAYER ON TOP OF MAIN CONTENT */
   create_top_bar(screen);
   create_bottom_menu(screen);
   return screen;
+}
+
+static void dot_pressed_cb(lv_event_t *e) {
+  printf("dot ditekan\n");
+
+  // create the pop-up dialog
+  // TODO: get the current screen with lv_event_t
+  lv_obj_t *popup = lv_msgbox_create(search_screen);
+  lv_obj_center(popup);
+  lv_msgbox_add_title(popup, "Info");
+  lv_msgbox_add_text(popup, "@michael_89 with 66 Bumps");
+  lv_msgbox_add_close_button(popup);
+  // TODO: resize the message box
 }
 
 lv_obj_t *create_setting_screen() {
   lv_obj_t *screen = lv_obj_create(NULL);
 
   // create_main_content();
+  // TODO: break this down into pieces, not just image
   lv_obj_set_style_bg_color(screen, lv_palette_main(LV_PALETTE_GREEN), 0);
+
+  // create top and bottom layer on top of main content
   create_top_bar(screen);
   create_bottom_menu(screen);
   return screen;
@@ -83,6 +130,7 @@ static void menu_event_handler(lv_event_t *e) {
     case SEARCH:
       lv_screen_load(search_screen);
       printf("switch to search screen\n");
+      // TODO: add flag that you're on search screen
       break;
 
     case SETTINGS:
@@ -164,7 +212,7 @@ static void create_top_bar(lv_obj_t *screen) {
   lv_style_set_text_font(&style_top_label, LV_FONT_MONTSERRAT_10);
   lv_style_set_text_color(&style_top_label, COLOR_PRIMARY);
   lv_style_set_text_align(&style_top_label, LV_TEXT_ALIGN_CENTER);
-  
+
   // TODO: change the font to Roboto Bold 10
   // create label for top bar
   lv_obj_t *label = lv_label_create(container);
@@ -174,9 +222,10 @@ static void create_top_bar(lv_obj_t *screen) {
 
   // create bell icon
   // FIX: the bell is squared. don't use .svg?
+  // TODO: add callback just to test the hitbox on .svg
   LV_IMAGE_DECLARE(icon_bell);
   lv_obj_t *bell = lv_image_create(container);
   lv_image_set_src(bell, &icon_bell);
   lv_obj_set_align(bell, LV_ALIGN_RIGHT_MID);
-  lv_obj_set_size(bell, 12, 12); 
+  lv_obj_set_size(bell, 12, 12);
 }

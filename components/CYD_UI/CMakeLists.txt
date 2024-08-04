@@ -6,6 +6,7 @@ idf_component_register(SRCS
                     "images/search_icon.c"
                     "images/setting_icon.c"
                     "images/icon_bell.c"
+                    "images/icon_radar.c"
                     INCLUDE_DIRS "include"
                     REQUIRES driver freertos
 )
