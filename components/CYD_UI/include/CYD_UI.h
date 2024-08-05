@@ -21,8 +21,9 @@ typedef enum {
 void      setup_screens();
 void      create_startup_screen();
 lv_obj_t *create_screen(lv_color_t color);
-lv_obj_t *create_home_screen();
 lv_obj_t *create_search_screen();
 lv_obj_t *create_setting_screen();
+void create_bottom_menu(lv_obj_t *parent);
+void create_top_bar(lv_obj_t *parent);
 
 #endif  // !CYD_UI_H_
