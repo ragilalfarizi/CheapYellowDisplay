@@ -12,6 +12,7 @@ static void dot_pressed_cb(lv_event_t *e);
 lv_obj_t *home_screen    = NULL;
 lv_obj_t *search_screen  = NULL;
 lv_obj_t *setting_screen = NULL;
+extern screen_id_t current_screen;
 
 void setup_screens() {
   home_screen    = create_home_screen();
@@ -50,17 +51,20 @@ static void menu_event_handler(lv_event_t *e) {
     case HOME:
       lv_screen_load(home_screen);
       printf("switch to home screen\n");
+      vTaskSuspend(radar_display_task_handler);
       break;
 
     case SEARCH:
       lv_screen_load(search_screen);
       printf("switch to search screen\n");
       // TODO: add flag that you're on search screen
+      vTaskResume(radar_display_task_handler);
       break;
 
     case SETTINGS:
       lv_screen_load(setting_screen);
       printf("switch to setting screen\n");
+      vTaskSuspend(radar_display_task_handler);
       break;
 
     default:

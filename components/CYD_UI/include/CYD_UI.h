@@ -18,6 +18,8 @@ typedef enum {
   SETTINGS,
 } screen_id_t;
 
+extern TaskHandle_t radar_display_task_handler;
+
 void      setup_screens();
 void      create_startup_screen();
 lv_obj_t *create_screen(lv_color_t color);
