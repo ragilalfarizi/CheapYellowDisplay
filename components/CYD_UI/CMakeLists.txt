@@ -12,7 +12,9 @@ idf_component_register(SRCS
                     "images/icon_bell.c"
                     "images/icon_radar.c"
                     INCLUDE_DIRS "include"
-                    REQUIRES driver freertos
+                    REQUIRES driver 
+                             freertos
+                             person_handling
 )
 
 set(EXTRA_COMPONENT_DIRS images) # this actually doesn't do anything.

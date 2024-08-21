@@ -1,7 +1,11 @@
 #include "CYD_search_screen.h"
 
 /* STATIC PROTOTYPE DECLARATION */
-static void dot_pressed_cb(lv_event_t *e);
+static void        dot_pressed_cb(lv_event_t *e);
+static void        create_dot(lv_obj_t *parent, Person_t *p);
+static lv_obj_t   *radar;
+static lv_style_t  style_dot;
+static const char *TAG = "Search Screen";
 
 // TODO: move into separate file
 lv_obj_t *create_search_screen() {
@@ -17,12 +21,12 @@ lv_obj_t *create_search_screen() {
 
   // create radar
   LV_IMAGE_DECLARE(icon_radar);
-  lv_obj_t *radar = lv_image_create(screen);
+  radar = lv_image_create(screen);
   lv_image_set_src(radar, &icon_radar);
   lv_obj_set_pos(radar, 4, 31);
 
   /* CREATE DOTS */
-  static lv_style_t style_dot;
+  // static lv_style_t style_dot;
   lv_style_init(&style_dot);
   lv_style_set_size(&style_dot, 15, 15);
   lv_style_set_radius(&style_dot, LV_RADIUS_CIRCLE);
@@ -32,18 +36,18 @@ lv_obj_t *create_search_screen() {
   // TODO: use math to calculate and determine the position
 
   // first dot
-  lv_obj_t *dot1 = lv_obj_create(radar);
-  lv_obj_add_style(dot1, &style_dot, 0);
-  lv_obj_align(dot1, LV_ALIGN_CENTER, 20, -50);
-  lv_obj_add_event_cb(dot1, dot_pressed_cb, LV_EVENT_CLICKED,
-                      (void *)"@michael_89 with 66 Bumps");
+  // lv_obj_t *dot1 = lv_obj_create(radar);
+  // lv_obj_add_style(dot1, &style_dot, 0);
+  // lv_obj_align(dot1, LV_ALIGN_CENTER, 20, -50);
+  // lv_obj_add_event_cb(dot1, dot_pressed_cb, LV_EVENT_CLICKED,
+  //                     (void *)"@michael_89 with 66 Bumps");
 
   // second dot
-  lv_obj_t *dot2 = lv_obj_create(radar);
-  lv_obj_add_style(dot2, &style_dot, 0);
-  lv_obj_align(dot2, LV_ALIGN_CENTER, -70, 70);
-  lv_obj_add_event_cb(dot2, dot_pressed_cb, LV_EVENT_CLICKED,
-                      (void *)"@sara_lynn91 with 47 bumps");
+  // lv_obj_t *dot2 = lv_obj_create(radar);
+  // lv_obj_add_style(dot2, &style_dot, 0);
+  // lv_obj_align(dot2, LV_ALIGN_CENTER, -70, 70);
+  // lv_obj_add_event_cb(dot2, dot_pressed_cb, LV_EVENT_CLICKED,
+  //                     (void *)"@sara_lynn91 with 47 bumps");
 
   // FIX: the mcu reset everytime i close sara lynn pop up
 
@@ -66,4 +70,43 @@ static void dot_pressed_cb(lv_event_t *e) {
   lv_msgbox_add_text(popup, info);
   lv_msgbox_add_close_button(popup);
   // TODO: resize the message box
+}
+
+// Helper function to create a dot on the radar
+static void create_dot(lv_obj_t *parent, Person_t *p) {
+  ESP_LOGI(TAG, "About to draw a dot for %s", p->name);
+
+  if (parent == NULL) {
+    ESP_LOGE(TAG, "Failde to create dot: parent object is NULL");
+    return;
+  }
+
+  lv_obj_t *dot = lv_obj_create(parent);
+
+  lv_obj_add_style(dot, &style_dot, 0);
+  lv_obj_align(dot, LV_ALIGN_CENTER, p->pos_x, p->pos_y);
+  lv_obj_add_event_cb(dot, dot_pressed_cb, LV_EVENT_CLICKED, (void *)p->name);
+
+  ESP_LOGI(TAG, "Dot created for %s at X: %d, Y: %d", p->name, p->pos_x,
+           p->pos_y);
+}
+
+void draw_dot_info(Person_t *p) {
+  ESP_LOGI(TAG, "Drawing dot for: Name: %s, X: %d, Y: %d", p->name, p->pos_x,
+           p->pos_y);
+
+  create_dot(radar, p);
+
+  ESP_LOGI(TAG, "Dot has been placed for %s", p->name);
+}
+
+void clear_radar_display() {
+  if (radar == NULL) {
+    ESP_LOGE(TAG, "Radar object is NULL");
+    return;
+  }
+
+  ESP_LOGI(TAG, "Entering obj clean");
+  lv_obj_clean(radar);
+  vTaskDelay(pdMS_TO_TICKS(1000));
 }
