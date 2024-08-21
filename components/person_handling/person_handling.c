@@ -1,7 +1,8 @@
 #include "person_handling.h"
 
-static const char *TAG          = "Person Handler";
-static uint8_t     current_size = 0;
+static const char      *TAG          = "Person Handler";
+static uint8_t          current_size = 0;
+i2c_master_dev_handle_t dev_handle;
 
 esp_err_t i2c_init(void) {
   /* INSTALL I2C MASTER BUS CONFIG */
@@ -19,16 +20,18 @@ esp_err_t i2c_init(void) {
 
   i2c_device_config_t dev_cfg = {
       .dev_addr_length = I2C_ADDR_BIT_7,
-      .device_address  = 0x58,
+      .device_address  = I2C_SLAVE_ADDR,
       .scl_speed_hz    = 100000,
   };
 
-  i2c_master_dev_handle_t dev_handle;
   ESP_ERROR_CHECK(i2c_master_bus_add_device(bus_handle, &dev_cfg, &dev_handle));
+  ESP_ERROR_CHECK(i2c_master_probe(bus_handle, 0x08, -1));
+  ESP_LOGI(TAG, "MASTER PROBE SUCCESSFUL");
 
   return ESP_OK;
 }
 
+// NOTE: maybe depreciated since we use queue eventually
 esp_err_t allocate_person_dynamically(Person_t **person, uint8_t *capacity) {
   *person = malloc(*capacity * sizeof(Person_t));
   if (person == NULL) {
@@ -36,11 +39,15 @@ esp_err_t allocate_person_dynamically(Person_t **person, uint8_t *capacity) {
     return ESP_FAIL;
   }
 
+  ESP_LOGI(TAG, "Succesfully created dynamic allocation for Person");
   return ESP_OK;
 }
 
+// NOTE: maybe depreciated since we use queue eventually
 esp_err_t add_person(Person_t **persons, Person_t *new_person,
                      uint8_t *current_size) {
+  // TODO: check
+
   (*persons)[*current_size] = *new_person;
   (*current_size)++;
   // // do something
@@ -66,6 +73,7 @@ esp_err_t add_person(Person_t **persons, Person_t *new_person,
   return ESP_OK;
 }
 
+// NOTE: maybe depreciated since we use queue eventually
 esp_err_t delete_person(Person_t **persons, int *size, int id) {
   for (int i = 0; i < *size; i++) {
     if ((*persons)[i].id == id) {
@@ -84,20 +92,6 @@ esp_err_t delete_person(Person_t **persons, int *size, int id) {
 
   return ESP_OK;
 }
-
-// Person_t serialize(const char* json){
-//   Person_t temp_p;
-//
-//   return temp_p;
-// }
-// Person_t get_person_from_i2c(){
-//   // do something
-//   // TODO: if no message
-//   //          wait
-//   //      else
-//   //          serialize
-//   //          return person_t
-// }
 
 Person_t deserialize_person(jparse_ctx_t *jctx, const char *json) {
   Person_t new_p;

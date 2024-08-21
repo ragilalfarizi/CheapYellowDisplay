@@ -11,9 +11,8 @@ jparse_ctx_t   jctx;
 
 Person_t* persons;
 
-TEST_CASE("i2c init", "[person][comm]"){
- TEST_ASSERT_EQUAL(ESP_OK, i2c_init()); 
-
+TEST_CASE("i2c init", "[person][comm]") {
+  TEST_ASSERT_EQUAL(ESP_OK, i2c_init());
 }
 
 TEST_CASE("memory allocated dynamically for Person", "[person]") {
@@ -76,4 +75,45 @@ TEST_CASE("deserialize JSON and add Person_t to array", "[person]") {
   TEST_ASSERT_EQUAL_INT(60, persons[0].pos_y);
 
   free(persons);
+}
+
+TEST_CASE("serialized_data queue can be filled", "[person]") {
+  const char* s1 =
+      "{\"name\": \"ragil\", \"id\": 12, \"pos_x\": 50, \"pos_y\": 60}";
+
+  const char* s2 =
+      "{\"name\": \"barkowi\", \"id\": 19, \"pos_x\": -15, \"pos_y\": -20}";
+
+  const char* s3 =
+      "{\"name\": \"tara\", \"id\": 39, \"pos_x\": -11, \"pos_y\": 70}";
+
+  QueueHandle_t serialized_json_data_queue;
+  serialized_json_data_queue = xQueueCreate(10, sizeof(char*));
+
+  TEST_ASSERT_NOT_NULL(serialized_json_data_queue);
+
+  // sending to queue
+  xQueueSend(serialized_json_data_queue, &s1, portMAX_DELAY);
+  xQueueSend(serialized_json_data_queue, &s2, portMAX_DELAY);
+  xQueueSend(serialized_json_data_queue, &s3, portMAX_DELAY);
+
+  // check if the queue has items
+  TEST_ASSERT_EQUAL(3, uxQueueMessagesWaiting(serialized_json_data_queue));
+
+  char* received_item;
+
+  // receiving and verifying items
+  TEST_ASSERT_EQUAL(pdPASS, xQueueReceive(serialized_json_data_queue,
+                                          &received_item, portMAX_DELAY));
+  TEST_ASSERT_EQUAL_STRING(s1, received_item);
+
+  TEST_ASSERT_EQUAL(pdPASS, xQueueReceive(serialized_json_data_queue,
+                                          &received_item, portMAX_DELAY));
+  TEST_ASSERT_EQUAL_STRING(s2, received_item);
+
+  TEST_ASSERT_EQUAL(pdPASS, xQueueReceive(serialized_json_data_queue,
+                                          &received_item, portMAX_DELAY));
+  TEST_ASSERT_EQUAL_STRING(s3, received_item);
+
+  vQueueDelete(serialized_json_data_queue);
 }

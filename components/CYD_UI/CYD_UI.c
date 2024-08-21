@@ -51,20 +51,23 @@ static void menu_event_handler(lv_event_t *e) {
     case HOME:
       lv_screen_load(home_screen);
       printf("switch to home screen\n");
-      vTaskSuspend(radar_display_task_handler);
+      vTaskSuspend(radar_display_handler);
+      vTaskSuspend(add_rand_person_handler);
       break;
 
     case SEARCH:
       lv_screen_load(search_screen);
       printf("switch to search screen\n");
       // TODO: add flag that you're on search screen
-      vTaskResume(radar_display_task_handler);
+      vTaskResume(radar_display_handler);
+      vTaskResume(add_rand_person_handler);
       break;
 
     case SETTINGS:
       lv_screen_load(setting_screen);
       printf("switch to setting screen\n");
-      vTaskSuspend(radar_display_task_handler);
+      vTaskSuspend(radar_display_handler);
+      vTaskSuspend(add_rand_person_handler);
       break;
 
     default:

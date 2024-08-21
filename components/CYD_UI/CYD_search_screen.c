@@ -74,10 +74,10 @@ static void dot_pressed_cb(lv_event_t *e) {
 
 // Helper function to create a dot on the radar
 static void create_dot(lv_obj_t *parent, Person_t *p) {
-  printf("mau gambar dot\n");
-  ESP_LOGI(TAG, "About to draw a dot");
+  ESP_LOGI(TAG, "About to draw a dot for %s", p->name);
+
   if (parent == NULL) {
-    ESP_LOGE(TAG, "failed to create dot\n");
+    ESP_LOGE(TAG, "Failde to create dot: parent object is NULL");
     return;
   }
 
@@ -86,15 +86,18 @@ static void create_dot(lv_obj_t *parent, Person_t *p) {
   lv_obj_add_style(dot, &style_dot, 0);
   lv_obj_align(dot, LV_ALIGN_CENTER, p->pos_x, p->pos_y);
   lv_obj_add_event_cb(dot, dot_pressed_cb, LV_EVENT_CLICKED, (void *)p->name);
+
+  ESP_LOGI(TAG, "Dot created for %s at X: %d, Y: %d", p->name, p->pos_x,
+           p->pos_y);
 }
 
 void draw_dot_info(Person_t *p) {
-  ESP_LOGI(TAG, "Entering draw_dot_info()");
-  for (uint8_t i = 0; i < 2; i++) {
-    printf("Name: %s, X: %d, Y: %d\n", p[i].name, p[i].pos_x, p[i].pos_y);
-    create_dot(radar, &p[i]);
-  }
-  ESP_LOGI(TAG, "The dots have been placed");
+  ESP_LOGI(TAG, "Drawing dot for: Name: %s, X: %d, Y: %d", p->name, p->pos_x,
+           p->pos_y);
+
+  create_dot(radar, p);
+
+  ESP_LOGI(TAG, "Dot has been placed for %s", p->name);
 }
 
 void clear_radar_display() {

@@ -18,7 +18,8 @@ typedef enum {
   SETTINGS,
 } screen_id_t;
 
-extern TaskHandle_t radar_display_task_handler;
+extern TaskHandle_t radar_display_handler;
+extern TaskHandle_t add_rand_person_handler;
 
 void      setup_screens();
 void      create_startup_screen();

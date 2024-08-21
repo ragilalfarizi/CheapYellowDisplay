@@ -14,8 +14,8 @@
 #define MAX_PERSON_COUNT        4
 
 #define PIN_I2C_SCL    22
-#define PIN_I2C_SDA    21
-#define I2C_SLAVE_ADDR 0x58
+#define PIN_I2C_SDA    27
+#define I2C_SLAVE_ADDR 0x08
 
 typedef struct {
   uint16_t id;
@@ -23,8 +23,6 @@ typedef struct {
   int16_t  pos_x;
   int16_t  pos_y;
 } Person_t;
-
-// extern Person_t *person_array;
 
 esp_err_t i2c_init(void);
 
@@ -35,15 +33,8 @@ esp_err_t add_person(Person_t **persons, Person_t *new_person,
 
 esp_err_t delete_person(Person_t **persons, int *size, int id);
 
-// TODO: delete this
-// void update_radar(SemaphoreHandle_t display_mutex, size_t *person_count,
-//                   Person_t **person_array);
-//
-// void refresh_radar(void);
-// Person_t get_person_from_i2c();
-
-// Person_t serialize(const char* json);
-//
 Person_t deserialize_person(jparse_ctx_t *jctx, const char *json);
+
+void add_random_person_to_queue(QueueHandle_t person_queue);
 
 #endif  // !PERSON_HANDLING_H_

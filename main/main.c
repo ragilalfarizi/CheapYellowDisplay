@@ -1,3 +1,6 @@
+#include <stdlib.h>
+#include <time.h>
+
 #include "CYD_SDCard.h"
 #include "CYD_UI.h"
 #include "CYD_display.h"
@@ -10,48 +13,43 @@
 void lvgl_display_task(void *pvParameter);
 void I2C_data_handling_task(void *pvParameter);
 void radar_display_task(void *pvParameter);
+void add_rand_person_task(void *pvParameter);
 
 /* TASK HANDLER DECLARATION */
-TaskHandle_t lvgl_display_task_handler      = NULL;
-TaskHandle_t i2c_data_handling_task_handler = NULL;
-TaskHandle_t radar_display_task_handler     = NULL;
+TaskHandle_t lvgl_display_handler            = NULL;
+TaskHandle_t i2c_data_handling_task_handler  = NULL;
+TaskHandle_t radar_display_handler           = NULL;
+TaskHandle_t add_rand_person_handler         = NULL;
 
 // TODO: create dynamic allocation for Person Struct using dynamic array
 
 /* GLOBAL VARIABLES */
-static const char   *TAG            = "main";
-size_t               person_count   = 0;
-volatile screen_id_t current_screen = HOME;
-uint8_t              capacity       = INITIAL_PERSON_CAPACITY;
-uint8_t              current_size   = 0;
-
-// this is allocating data dynamically. WIP.
-// temporarily using stack allocation.
-// Person_t            *person_array[MAX_PERSON_COUNT];
-// Person_t p_arr[MAX_PERSON_COUNT];
-Person_t *persons;
-
-// Person_t p_arr[0] = p1;
+static const char             *TAG            = "main";
+volatile screen_id_t           current_screen = HOME;
+uint8_t                        capacity       = INITIAL_PERSON_CAPACITY;
+extern i2c_master_dev_handle_t dev_handle;
 
 QueueHandle_t     serialized_json_data_queue;
+QueueHandle_t     person_data_q;
 SemaphoreHandle_t display_mutex;
+SemaphoreHandle_t i2c_sem;
 
 void app_main(void) {
-  // Person_t *persons;
-  // uint8_t   capacity = INITIAL_PERSON_CAPACITY;
-  // uint8_t   size     = 0;
-
-  allocate_person_dynamically(&persons, &capacity);
-
-  Person_t p1 = {111, "ragil", 90, 80};
-  Person_t p2 = {222, "ahmad", -20, -70};
-
-  add_person(&persons, &p1, &current_size);
-  add_person(&persons, &p2, &current_size);
-
   // TODO: change the size into the lenght of upcoming serialized json data
-  serialized_json_data_queue = xQueueCreate(10, sizeof(Person_t));
-  display_mutex              = xSemaphoreCreateMutex();
+  serialized_json_data_queue = xQueueCreate(10, sizeof(char *));
+  if (serialized_json_data_queue == NULL) {
+    ESP_LOGE(TAG, "Failed to create serialized queue");
+    return;
+  }
+
+  person_data_q = xQueueCreate(10, sizeof(Person_t));
+  if (person_data_q == NULL) {
+    ESP_LOGE(TAG, "Failed to create person queue");
+    return;
+  }
+
+  display_mutex = xSemaphoreCreateMutex();
+  i2c_sem       = xSemaphoreCreateBinary();
 
   /* LCD HW initialization */
   ESP_LOGI(TAG, "Entering LCD_INIT");
@@ -64,25 +62,29 @@ void app_main(void) {
   ESP_LOGI(TAG, "Entering touch_init");
   touch_init();
 
+  /* I2C initialization */
+  // ESP_LOGI(TAG, "Entering I2C init");
   // i2c_init();
-  // allocate_person_dynamically();
 
   /* LVGL initialization */
   ESP_LOGI(TAG, "Entering app_lvgl_init");
   app_lvgl_init();
 
   setup_screens();
-  // assign_dummy_data();
 
   /* TASK CREATION */
-  xTaskCreatePinnedToCore(lvgl_display_task, "LVGL Display Task", 4096,
-                          NULL, 5, &lvgl_display_task_handler, 0);
+  xTaskCreatePinnedToCore(lvgl_display_task, "LVGL Display Task", 4096, NULL, 5,
+                          &lvgl_display_handler, 0);
   // xTaskCreatePinnedToCore(I2C_data_handling_task, "I2C Data Handling", 4096,
-  //                         NULL, 3, &i2c_data_handling_task_handler, 1);
+  //                         person_data_q, 3, &i2c_data_handling_task_handler,
+  //                         1);
   xTaskCreatePinnedToCore(radar_display_task, "Radar Display Task", 3584,
-                          NULL, 3, &radar_display_task_handler, 1);
+                          person_data_q, 3, &radar_display_handler, 1);
+  xTaskCreatePinnedToCore(add_rand_person_task, "add random person to queue",
+                          2048, person_data_q, 3, &add_rand_person_handler, 1);
 
-  vTaskSuspend(radar_display_task_handler);
+  vTaskSuspend(radar_display_handler);
+  vTaskSuspend(add_rand_person_handler);
 }
 
 void lvgl_display_task(void *pvParameter) {
@@ -95,73 +97,76 @@ void lvgl_display_task(void *pvParameter) {
 }
 
 void I2C_data_handling_task(void *pvParameter) {
-  // setup i2c
+  char data[128];
 
-  // while (1)
-  //    fetch_data
-  //    send to queue
+  while (1) {
+    if (xSemaphoreTake(i2c_sem, portMAX_DELAY) == pdTRUE) {
+      esp_err_t ret =
+          i2c_master_receive(dev_handle, (uint8_t *)data, sizeof(data), -1);
+      if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to receive data");
+        continue;
+      }
 
-  // ============= //
-  /*
-   while True:
-        json_data = receive_data_from_i2c()
-        if json_data:
-            push_to_queue(i2c_queue, json_data)
-        delay(periodic_interval)
-  */
+      printf("%s\n", data);
+
+      if (xQueueSend(serialized_json_data_queue, &data, portMAX_DELAY) !=
+          pdPASS) {
+        ESP_LOGE("I2C Task", "Failed to send data to the queue");
+      }
+    }
+  }
 }
 
 void radar_display_task(void *pvParameter) {
-  // task is now active, start processing
+  ESP_LOGI(TAG, "Entering radar display task");
+
+  QueueHandle_t person_queue = (QueueHandle_t)pvParameter;
+  if (person_queue == NULL) {
+    ESP_LOGE(TAG, "Failed to pass person queue to radar task");
+    return;
+  }
+
+  Person_t person;
+
   while (1) {
-    // update_dot_info(p_arr, new_p); // using queue? mutex?
-    printf("masuk task radar\n");
-
-    // TODO: fetch from queue and deserialize
-
-    draw_dot_info(persons);
+    while (xQueueReceive(person_queue, &person, 0) == pdPASS) {
+      draw_dot_info(&person);
+    }
 
     // wait 3 seconds
     vTaskDelay(pdMS_TO_TICKS(3000));
-
     clear_radar_display();
-
-    // // check if we should supsend (notification)
-    // if (ulTaskNotifyTake(pdTRUE, 0)) {
-    //   break;
-    // }
   }
 }
-//
-// void assign_dummy_data() {
-//   // Check if the array can hold more persons
-//   if (person_count < MAX_PERSON_COUNT) {
-//     // Allocate memory for each Person_t object
-//     for (size_t i = 0; i < MAX_PERSON_COUNT; i++) {
-//       person_array[i] = (Person_t *)malloc(sizeof(Person_t));
-//       if (person_array[i] != NULL) {
-//         person_array[i]->id = i + 1;
-//         snprintf(person_array[i]->name, sizeof(person_array[i]->name),
-//                  "Person %zu", i + 1);
-//         person_array[i]->pos_x = 10 + (i * 20);  // Example positions
-//         person_array[i]->pos_y = 30 + (i * 20);
-//         person_count++;
-//       } else {
-//         printf("Memory allocation failed for person %zu\n", i + 1);
-//       }
-//     }
-//   } else {
-//     printf("Person array is already full.\n");
-//   }
-// }
-//
-// void print_person_data() {
-//   // Print the person data for testing
-//   for (size_t i = 0; i < person_count; i++) {
-//     printf("Person ID: %d\n", person_array[i]->id);
-//     printf("Person Name: %s\n", person_array[i]->name);
-//     printf("Position X: %d, Position Y: %d\n", person_array[i]->pos_x,
-//            person_array[i]->pos_y);
-//     printf("-------------------\n");
-//   }
-// }
+
+void add_rand_person_task(void *pvParameter) {
+  QueueHandle_t person_queue = (QueueHandle_t)pvParameter;
+  if (person_queue == NULL) {
+    ESP_LOGE(TAG, "Failed to pass person queue to random person task");
+    return;
+  }
+
+  Person_t person;
+
+  // seed the random generator
+  srand(time(NULL));
+
+  while (1) {
+    // generate random person data
+    person.id = rand() % 1001;  // random ID between 0 and 1000
+    snprintf(person.name, sizeof(person.name), "Person_%d", person.id);
+    person.pos_x =
+        (rand() & 201) - 100;  // random X position between -100 to 100
+    person.pos_y =
+        (rand() & 201) - 100;  // random Y position between -100 to 100
+
+    // send person data to the queue
+    if (xQueueSend(person_queue, &person, portMAX_DELAY) != pdPASS) {
+      ESP_LOGE(TAG, "Failed to add person to the queue");
+    }
+
+    // delay between adding persons
+    vTaskDelay(pdMS_TO_TICKS(2000));
+  }
+}
