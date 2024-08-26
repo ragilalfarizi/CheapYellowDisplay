@@ -98,8 +98,8 @@ void touch_driver_read(lv_indev_t *drv, lv_indev_data_t *data) {
     data->point.x = *x;
     data->point.y = *y;
     data->state   = LV_INDEV_STATE_PRESSED;
-    printf("touch x: %d \t touch y: %d \t strength: %u \t count: %d\n", *x, *y,
-           *strength, count);
+    // printf("touch x: %d \t touch y: %d \t strength: %u \t count: %d\n", *x, *y,
+    //        *strength, count);
   } else {
     data->state = LV_INDEV_STATE_RELEASED;
   }
@@ -121,6 +121,7 @@ esp_err_t touch_init(void) {
   ESP_RETURN_ON_ERROR(spi_bus_initialize(SPI3_HOST, &buscfg, SPI_DMA_CH_AUTO),
                       TAG, "SPI init Failed");
 
+  // Initialize XPT2046 config
   const esp_lcd_panel_io_spi_config_t tp_io_config =
       ESP_LCD_TOUCH_IO_SPI_XPT2046_CONFIG(XPT2046_CS_PIN);
   ESP_RETURN_ON_ERROR(
@@ -128,6 +129,7 @@ esp_err_t touch_init(void) {
                                &tp_io_config, &tp_io_handle),
       TAG, "Touch Config failed");
 
+    // Initialize touch config
   const esp_lcd_touch_config_t tp_cfg = {
       .x_max        = TFT_H_RES,
       .y_max        = TFT_V_RES,
