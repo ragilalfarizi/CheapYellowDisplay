@@ -1,11 +1,63 @@
 #include "CYD_search_screen.h"
 
 /* STATIC PROTOTYPE DECLARATION */
-static void        dot_pressed_cb(lv_event_t *e);
-static void        create_dot(lv_obj_t *parent, Person_t *p);
-static lv_obj_t   *radar;
-static lv_style_t  style_dot;
-static const char *TAG = "Search Screen";
+static void dot_pressed_cb(lv_event_t *e);
+static void create_dot(lv_obj_t *parent, Person_t *p);
+
+/* VARIABLES DECLARATION */
+static lv_obj_t     *radar;
+static lv_style_t    style_dot;
+static const char   *TAG = "Search Screen";
+extern QueueHandle_t person_data_q;
+extern Person_t      person;
+extern lv_obj_t     *home_screen;
+
+static void refresh_btn_event_cb(lv_event_t *e) {
+  lv_event_code_t code = lv_event_get_code(e);
+
+  switch (code) {
+      // Single tap: Take one data item from the queue
+    case LV_EVENT_CLICKED:
+      ESP_LOGI(TAG, "Button clicked, taking one data item");
+
+      // Clear the radar first if the there are object
+      if (radar != NULL) {
+        clear_radar_display();
+      }
+
+      // TODO: fetch the amount of available data from queue and draw them
+      if (xQueueReceive(person_data_q, &person, pdMS_TO_TICKS(1000)) ==
+          pdPASS) {
+        ESP_LOGI(TAG, "about to draw person");
+        draw_dot_info(&person);
+      } else {
+        ESP_LOGI(TAG, "can't receive the data from queue");
+      }
+      break;
+
+      // Long press: Start refreshing data at intervals
+    case LV_EVENT_LONG_PRESSED:
+      ESP_LOGI(TAG, "Button long pressed, starting data refresh");
+      // TODO: Implement the instruction of refreshing data
+      break;
+
+      // Stop refreshing when the button is released
+    case LV_EVENT_RELEASED:
+      // NOTE: might be redundant.
+      //       find another way to fetch the data while pressing the button.
+      ESP_LOGI(TAG, "Button released, stopping data refresh");
+      break;
+
+    default:
+      break;
+  }
+}
+
+static void back_btn_event_cb(lv_event_t *e) {
+  ESP_LOGI(TAG, "Back button is pressed");
+  lv_screen_load(home_screen);
+  vTaskSuspend(add_rand_person_handler);
+}
 
 // TODO: move into separate file
 lv_obj_t *create_search_screen() {
@@ -26,7 +78,6 @@ lv_obj_t *create_search_screen() {
   lv_obj_set_pos(radar, 4, 31);
 
   /* CREATE DOTS */
-  // static lv_style_t style_dot;
   lv_style_init(&style_dot);
   lv_style_set_size(&style_dot, 15, 15);
   lv_style_set_radius(&style_dot, LV_RADIUS_CIRCLE);
@@ -35,30 +86,35 @@ lv_obj_t *create_search_screen() {
 
   // TODO: use math to calculate and determine the position
 
-  // first dot
-  // lv_obj_t *dot1 = lv_obj_create(radar);
-  // lv_obj_add_style(dot1, &style_dot, 0);
-  // lv_obj_align(dot1, LV_ALIGN_CENTER, 20, -50);
-  // lv_obj_add_event_cb(dot1, dot_pressed_cb, LV_EVENT_CLICKED,
-  //                     (void *)"@michael_89 with 66 Bumps");
-
-  // second dot
-  // lv_obj_t *dot2 = lv_obj_create(radar);
-  // lv_obj_add_style(dot2, &style_dot, 0);
-  // lv_obj_align(dot2, LV_ALIGN_CENTER, -70, 70);
-  // lv_obj_add_event_cb(dot2, dot_pressed_cb, LV_EVENT_CLICKED,
-  //                     (void *)"@sara_lynn91 with 47 bumps");
-
-  // FIX: the mcu reset everytime i close sara lynn pop up
-
   /* CREATE TOP AND BOTTOM LAYER ON TOP OF MAIN CONTENT */
   create_top_bar(screen);
-  create_bottom_menu(screen);
+  // Create bottom button
+
+  /* CREATE REFRESH BUTTON */
+  lv_obj_t *refresh_btn = lv_button_create(screen);
+  lv_obj_set_align(refresh_btn, LV_ALIGN_BOTTOM_MID);
+  lv_obj_set_size(refresh_btn, 100, 50);
+  lv_obj_add_event_cb(refresh_btn, refresh_btn_event_cb, LV_EVENT_ALL, NULL);
+
+  lv_obj_t *label = lv_label_create(refresh_btn);  // Add a label to the button
+  lv_label_set_text(label, "Refresh");
+  lv_obj_center(label);
+
+  /* CREATE BACK BUTTON */
+  lv_obj_t *btn2 = lv_button_create(screen);
+  lv_obj_set_align(btn2, LV_ALIGN_BOTTOM_LEFT);
+  lv_obj_set_size(btn2, 40, 30);
+  lv_obj_add_event_cb(btn2, back_btn_event_cb, LV_EVENT_PRESSED, NULL);
+
+  lv_obj_t *label2 = lv_label_create(btn2);  // Add a label to the button
+  lv_label_set_text(label2, "Back");
+  lv_obj_center(label2);
+
   return screen;
 }
 
 static void dot_pressed_cb(lv_event_t *e) {
-  printf("dot ditekan\n");
+  ESP_LOGI(TAG, "dot is pressed");
 
   const char *info = (const char *)lv_event_get_user_data(e);
 
@@ -74,10 +130,8 @@ static void dot_pressed_cb(lv_event_t *e) {
 
 // Helper function to create a dot on the radar
 static void create_dot(lv_obj_t *parent, Person_t *p) {
-  ESP_LOGI(TAG, "About to draw a dot for %s", p->name);
-
   if (parent == NULL) {
-    ESP_LOGE(TAG, "Failde to create dot: parent object is NULL");
+    ESP_LOGE(TAG, "Failed to create dot: parent object is NULL");
     return;
   }
 
@@ -91,13 +145,10 @@ static void create_dot(lv_obj_t *parent, Person_t *p) {
            p->pos_y);
 }
 
+// OPTIMIZE: remove this abstraction. just straight to create_dot
 void draw_dot_info(Person_t *p) {
-  ESP_LOGI(TAG, "Drawing dot for: Name: %s, X: %d, Y: %d", p->name, p->pos_x,
-           p->pos_y);
-
   create_dot(radar, p);
-
-  ESP_LOGI(TAG, "Dot has been placed for %s", p->name);
+  vTaskDelay(pdMS_TO_TICKS(10));
 }
 
 void clear_radar_display() {
@@ -106,7 +157,7 @@ void clear_radar_display() {
     return;
   }
 
-  ESP_LOGI(TAG, "Entering obj clean");
+  ESP_LOGI(TAG, "Cleaning radar...");
   lv_obj_clean(radar);
-  vTaskDelay(pdMS_TO_TICKS(1000));
+  vTaskDelay(pdMS_TO_TICKS(100));
 }

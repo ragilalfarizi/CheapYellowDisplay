@@ -70,7 +70,7 @@ extern lv_indev_t               *lvgl_touch_indev;
 
 /* ================================================= */
 esp_err_t LCD_init(void);
-esp_err_t touch_init(void);
+esp_err_t cyd_touch_init(void);
 esp_err_t app_lvgl_init(void);
 
 #endif  // !CHEAPYELLOWDISPLAY_H_

@@ -105,7 +105,7 @@ void touch_driver_read(lv_indev_t *drv, lv_indev_data_t *data) {
   }
 }
 
-esp_err_t touch_init(void) {
+esp_err_t cyd_touch_init(void) {
   esp_err_t ret = ESP_OK;
 
   // Initialize SPI bus for touch screen

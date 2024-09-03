@@ -9,10 +9,11 @@ static void menu_event_handler(lv_event_t *e);
 static void dot_pressed_cb(lv_event_t *e);
 
 /* GLOBAL VARIABLES DECLARATION */
-lv_obj_t *home_screen    = NULL;
-lv_obj_t *search_screen  = NULL;
-lv_obj_t *setting_screen = NULL;
+lv_obj_t          *home_screen    = NULL;
+lv_obj_t          *search_screen  = NULL;
+lv_obj_t          *setting_screen = NULL;
 extern screen_id_t current_screen;
+static const char *TAG = "Main UI";
 
 void setup_screens() {
   home_screen    = create_home_screen();
@@ -33,7 +34,6 @@ lv_obj_t *create_screen(lv_color_t color) {
   return screen;
 }
 
-
 void create_startup_screen() {
   LV_IMAGE_DECLARE(boot_screen_img);
 
@@ -43,30 +43,26 @@ void create_startup_screen() {
 }
 
 static void menu_event_handler(lv_event_t *e) {
-  printf("menu_event_handler is called\n");
-
   screen_id_t id = (screen_id_t)lv_event_get_user_data(e);
 
   switch (id) {
     case HOME:
       lv_screen_load(home_screen);
       printf("switch to home screen\n");
-      vTaskSuspend(radar_display_handler);
+      ESP_LOGI(TAG, "Switched to Home Screen");
       vTaskSuspend(add_rand_person_handler);
       break;
 
     case SEARCH:
       lv_screen_load(search_screen);
-      printf("switch to search screen\n");
+      ESP_LOGI(TAG, "Switched to Search Screen");
       // TODO: add flag that you're on search screen
-      vTaskResume(radar_display_handler);
       vTaskResume(add_rand_person_handler);
       break;
 
     case SETTINGS:
       lv_screen_load(setting_screen);
-      printf("switch to setting screen\n");
-      vTaskSuspend(radar_display_handler);
+      ESP_LOGI(TAG, "Switched to Settings Screen");
       vTaskSuspend(add_rand_person_handler);
       break;
 

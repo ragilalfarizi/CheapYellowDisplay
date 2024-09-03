@@ -11,45 +11,48 @@
 
 /* STATIC PROTOTYPE DECLARATION */
 void lvgl_display_task(void *pvParameter);
-void I2C_data_handling_task(void *pvParameter);
-void radar_display_task(void *pvParameter);
 void add_rand_person_task(void *pvParameter);
+// void radar_display_task(void *pvParameter);
 
 /* TASK HANDLER DECLARATION */
-TaskHandle_t lvgl_display_handler            = NULL;
-TaskHandle_t i2c_data_handling_task_handler  = NULL;
-TaskHandle_t radar_display_handler           = NULL;
-TaskHandle_t add_rand_person_handler         = NULL;
-
-// TODO: create dynamic allocation for Person Struct using dynamic array
+TaskHandle_t lvgl_display_handler    = NULL;
+TaskHandle_t radar_display_handler   = NULL;
+TaskHandle_t add_rand_person_handler = NULL;
+TaskHandle_t BLE_handler             = NULL;
 
 /* GLOBAL VARIABLES */
-static const char             *TAG            = "main";
-volatile screen_id_t           current_screen = HOME;
-uint8_t                        capacity       = INITIAL_PERSON_CAPACITY;
-extern i2c_master_dev_handle_t dev_handle;
+Person_t             person;
+static const char   *TAG            = "main";
+volatile screen_id_t current_screen = HOME;
 
 QueueHandle_t     serialized_json_data_queue;
 QueueHandle_t     person_data_q;
 SemaphoreHandle_t display_mutex;
-SemaphoreHandle_t i2c_sem;
 
 void app_main(void) {
+  /**********************************************/
+  /* BLUETOOTH LOW ENERGY INITIALIZATION START */
+  // ble_init();
+  /**********************************************/
+  /* BLUETOOTH LOW ENERGY INITIALIZATION DONE */
+
   // TODO: change the size into the lenght of upcoming serialized json data
-  serialized_json_data_queue = xQueueCreate(10, sizeof(char *));
+  serialized_json_data_queue = xQueueCreate(5, sizeof(char *));
   if (serialized_json_data_queue == NULL) {
     ESP_LOGE(TAG, "Failed to create serialized queue");
     return;
   }
 
-  person_data_q = xQueueCreate(10, sizeof(Person_t));
+  person_data_q = xQueueCreate(5, sizeof(Person_t));
   if (person_data_q == NULL) {
     ESP_LOGE(TAG, "Failed to create person queue");
     return;
   }
 
   display_mutex = xSemaphoreCreateMutex();
-  i2c_sem       = xSemaphoreCreateBinary();
+  if (display_mutex == NULL) {
+    ESP_LOGE(TAG, "Failed to create person queue");
+  }
 
   /* LCD HW initialization */
   ESP_LOGI(TAG, "Entering LCD_INIT");
@@ -60,11 +63,7 @@ void app_main(void) {
 
   /* Touch initialization */
   ESP_LOGI(TAG, "Entering touch_init");
-  touch_init();
-
-  /* I2C initialization */
-  // ESP_LOGI(TAG, "Entering I2C init");
-  // i2c_init();
+  cyd_touch_init();
 
   /* LVGL initialization */
   ESP_LOGI(TAG, "Entering app_lvgl_init");
@@ -73,18 +72,17 @@ void app_main(void) {
   setup_screens();
 
   /* TASK CREATION */
+
   xTaskCreatePinnedToCore(lvgl_display_task, "LVGL Display Task", 4096, NULL, 5,
                           &lvgl_display_handler, 0);
-  // xTaskCreatePinnedToCore(I2C_data_handling_task, "I2C Data Handling", 4096,
-  //                         person_data_q, 3, &i2c_data_handling_task_handler,
-  //                         1);
-  xTaskCreatePinnedToCore(radar_display_task, "Radar Display Task", 3584,
-                          person_data_q, 3, &radar_display_handler, 1);
+  // xTaskCreatePinnedToCore(radar_display_task, "Radar Display Task", 2048,
+  // NULL,
+  //                         3, &radar_display_handler, 1);
+  ESP_LOGI(TAG, "creating rand_person task");
   xTaskCreatePinnedToCore(add_rand_person_task, "add random person to queue",
                           2048, person_data_q, 3, &add_rand_person_handler, 1);
 
-  vTaskSuspend(radar_display_handler);
-  vTaskSuspend(add_rand_person_handler);
+  // vTaskSuspend(add_rand_person_handler);
 }
 
 void lvgl_display_task(void *pvParameter) {
@@ -96,47 +94,25 @@ void lvgl_display_task(void *pvParameter) {
   }
 }
 
-void I2C_data_handling_task(void *pvParameter) {
-  char data[128];
-
-  while (1) {
-    if (xSemaphoreTake(i2c_sem, portMAX_DELAY) == pdTRUE) {
-      esp_err_t ret =
-          i2c_master_receive(dev_handle, (uint8_t *)data, sizeof(data), -1);
-      if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "Failed to receive data");
-        continue;
-      }
-
-      printf("%s\n", data);
-
-      if (xQueueSend(serialized_json_data_queue, &data, portMAX_DELAY) !=
-          pdPASS) {
-        ESP_LOGE("I2C Task", "Failed to send data to the queue");
-      }
-    }
-  }
-}
-
+// OPTIMIZE: will be depreciated
 void radar_display_task(void *pvParameter) {
   ESP_LOGI(TAG, "Entering radar display task");
 
-  QueueHandle_t person_queue = (QueueHandle_t)pvParameter;
-  if (person_queue == NULL) {
-    ESP_LOGE(TAG, "Failed to pass person queue to radar task");
-    return;
-  }
-
-  Person_t person;
-
   while (1) {
-    while (xQueueReceive(person_queue, &person, 0) == pdPASS) {
-      draw_dot_info(&person);
+    // CREATE MUTEX
+    if (xSemaphoreTake(display_mutex, portMAX_DELAY) == pdTRUE) {
+      ESP_LOGI(TAG, "display mutex is available in main task.");
+      if (xQueueReceive(person_data_q, &person, 0) == pdPASS) {
+        draw_dot_info(&person);
+
+        printf("trying to give the semaphore");
+        if (xSemaphoreGive(display_mutex) == pdTRUE) {
+          ESP_LOGI(TAG, "display mutex is given away first by task");
+        }
+      }
     }
 
-    // wait 3 seconds
-    vTaskDelay(pdMS_TO_TICKS(3000));
-    clear_radar_display();
+    vTaskDelay(pdMS_TO_TICKS(1));
   }
 }
 
@@ -164,6 +140,13 @@ void add_rand_person_task(void *pvParameter) {
     // send person data to the queue
     if (xQueueSend(person_queue, &person, portMAX_DELAY) != pdPASS) {
       ESP_LOGE(TAG, "Failed to add person to the queue");
+    }
+
+    if (uxQueueSpacesAvailable(person_queue) == 0) {
+      ESP_LOGI(TAG, "Queue is full!");
+    } else {
+      ESP_LOGI(TAG, "Queue has space available: %d",
+               uxQueueSpacesAvailable(person_queue));
     }
 
     // delay between adding persons
