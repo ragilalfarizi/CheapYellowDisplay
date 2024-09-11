@@ -7,7 +7,17 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 #include "json_parser.h"
+#include "nvs_flash.h"
 #include "string.h"
+/* BLE */
+#include "console/console.h"
+#include "host/ble_hs.h"
+#include "host/util/util.h"
+#include "nimble/nimble_port.h"
+#include "nimble/nimble_port_freertos.h"
+#include "services/gap/ble_svc_gap.h"
+#include "services/gatt/ble_svc_gatt.h"
+// #include "blecent.h"
 
 #define INITIAL_PERSON_CAPACITY 4
 #define NAME_LENGTH             50
@@ -24,17 +34,23 @@ typedef struct {
   int16_t  pos_y;
 } Person_t;
 
-esp_err_t i2c_init(void);
-
-esp_err_t allocate_person_dynamically(Person_t **person, uint8_t *capacity);
-
-esp_err_t add_person(Person_t **persons, Person_t *new_person,
-                     uint8_t *current_size);
-
-esp_err_t delete_person(Person_t **persons, int *size, int id);
+void ble_init(void);
 
 Person_t deserialize_person(jparse_ctx_t *jctx, const char *json);
 
-void add_random_person_to_queue(QueueHandle_t person_queue);
+/** NOTE:
+ * Perhaps these functions need to be depreciated.
+ * since person management is using queue.
+ */
+// esp_err_t i2c_init(void);
+//
+// esp_err_t allocate_person_dynamically(Person_t **person, uint8_t *capacity);
+//
+// esp_err_t add_person(Person_t **persons, Person_t *new_person,
+//                      uint8_t *current_size);
+//
+// esp_err_t delete_person(Person_t **persons, int *size, int id);
+//
+// void add_random_person_to_queue(QueueHandle_t person_queue);
 
 #endif  // !PERSON_HANDLING_H_

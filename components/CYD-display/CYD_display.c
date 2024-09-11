@@ -98,8 +98,8 @@ void touch_driver_read(lv_indev_t *drv, lv_indev_data_t *data) {
     data->point.x = *x;
     data->point.y = *y;
     data->state   = LV_INDEV_STATE_PRESSED;
-    // printf("touch x: %d \t touch y: %d \t strength: %u \t count: %d\n", *x, *y,
-    //        *strength, count);
+    /*printf("touch x: %d \t touch y: %d \t strength: %u \t count: %d\n", *x, *y,*/
+    /*       *strength, count);*/
   } else {
     data->state = LV_INDEV_STATE_RELEASED;
   }
@@ -129,7 +129,7 @@ esp_err_t cyd_touch_init(void) {
                                &tp_io_config, &tp_io_handle),
       TAG, "Touch Config failed");
 
-    // Initialize touch config
+  // Initialize touch config
   const esp_lcd_touch_config_t tp_cfg = {
       .x_max        = TFT_H_RES,
       .y_max        = TFT_V_RES,

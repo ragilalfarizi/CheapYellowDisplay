@@ -32,7 +32,7 @@ SemaphoreHandle_t display_mutex;
 void app_main(void) {
   /**********************************************/
   /* BLUETOOTH LOW ENERGY INITIALIZATION START */
-  // ble_init();
+  ble_init();
   /**********************************************/
   /* BLUETOOTH LOW ENERGY INITIALIZATION DONE */
 
