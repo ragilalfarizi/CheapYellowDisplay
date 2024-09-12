@@ -116,14 +116,14 @@ lv_obj_t *create_search_screen() {
 static void dot_pressed_cb(lv_event_t *e) {
   ESP_LOGI(TAG, "dot is pressed");
 
-  const char *info = (const char *)lv_event_get_user_data(e);
+  ESP_LOGI(TAG, "Person name is %s", person.name);
 
   // create the pop-up dialog
   // TODO: get the current screen with lv_event_t
   lv_obj_t *popup = lv_msgbox_create(lv_screen_active());
   lv_obj_center(popup);
   lv_msgbox_add_title(popup, "Info");
-  lv_msgbox_add_text(popup, info);
+  lv_msgbox_add_text(popup, person.name);
   lv_msgbox_add_close_button(popup);
   // TODO: resize the message box
 }

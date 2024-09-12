@@ -73,7 +73,7 @@ void app_main(void) {
 
   /* TASK CREATION */
 
-  xTaskCreatePinnedToCore(lvgl_display_task, "LVGL Display Task", 4096, NULL, 5,
+  xTaskCreatePinnedToCore(lvgl_display_task, "LVGL Display Task", 5120, NULL, 5,
                           &lvgl_display_handler, 0);
   // xTaskCreatePinnedToCore(radar_display_task, "Radar Display Task", 2048,
   // NULL,
