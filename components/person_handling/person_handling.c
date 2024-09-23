@@ -1,7 +1,5 @@
 #include "person_handling.h"
 
-/*static const char      *TAG          = "Person Handler";*/
-static uint8_t          current_size = 0;
 i2c_master_dev_handle_t dev_handle;
 
 /******************************************************************************
@@ -11,9 +9,6 @@ i2c_master_dev_handle_t dev_handle;
 static const char *TAG                = "BLE_Client";
 static const char *remote_device_name = "bleUWB";
 
-#define SERVICE_UUID_STRING          "4fafc201-1fb5-459e-8fcc-c5c9c331914b"
-#define CHARACTERISTIC_UUID_1_STRING "beb5483e-36e1-4688-b7f5-ea07361b26a8"
-#define CHARACTERISTIC_UUID_2_STRING "1c95d5e3-d8f7-413a-bf3d-7a2e5d7be87e"
 #define SERVICE_UUID                                                        \
   BLE_UUID128_DECLARE(0x4b, 0x91, 0x31, 0xc3, 0xc9, 0xc5, 0xcc, 0x8f, 0x9e, \
                       0x45, 0xb5, 0x1f, 0x01, 0xc2, 0xaf, 0x4f)
@@ -30,34 +25,22 @@ static uint16_t service_handle;
 static uint16_t characteristic_handle_1;
 static uint16_t characteristic_handle_2;
 
+static int mtu_exchange_cb(uint16_t                     conn_handle,
+                           const struct ble_gatt_error *error, void *arg);
+
+static void characteristic_read_task(void *param);
+
 static int ble_on_disc_chr(uint16_t                     conn_handle,
                            const struct ble_gatt_error *error,
                            const struct ble_gatt_chr *chr, void *arg);
 
 static int ble_gap_event(struct ble_gap_event *event, void *arg);
 
-static int ble_on_read(uint16_t conn_handle, const struct ble_gatt_error *error,
-                       struct ble_gatt_attr *attr, void *arg);
-
-/*static int ble_on_notify(uint16_t                     conn_handle,*/
-/*                         const struct ble_gatt_error *error,*/
-/*                         struct ble_gatt_attr *attr, void *arg);*/
-
 static int ble_on_notify(struct ble_gap_event *event, void *arg);
 
 static int ble_on_write_cb(uint16_t                     conn_handle,
                            const struct ble_gatt_error *error,
                            struct ble_gatt_attr *attr, void *arg);
-
-// Callback when a service or characteristic is discovered
-/*static int ble_on_disc_svc(const struct ble_gatt_error *error,*/
-/*                           const struct ble_gatt_svc *service, void *arg) {*/
-/*  if (error->status == 0) {*/
-/*    ESP_LOGI(TAG, "Discovered service with UUID: %s", SERVICE_UUID_STRING);*/
-/*    service_handle = service->start_handle;*/
-/*  }*/
-/*  return 0;*/
-/*}*/
 
 // Service discovery callback with correct function signature
 static int ble_on_disc_svc(uint16_t                     conn_handle,
@@ -76,7 +59,7 @@ static int ble_on_disc_svc(uint16_t                     conn_handle,
     ESP_LOGI(TAG, "Service handles: %d to %d", svc->start_handle,
              svc->end_handle);
 
-    // Now start discovering characteristics with the correct handle range
+    // Start discovering characteristics with the correct handle range
     int rc = ble_gattc_disc_all_chrs(conn_handle, svc->start_handle,
                                      svc->end_handle, ble_on_disc_chr, NULL);
     if (rc != 0) {
@@ -89,46 +72,10 @@ static int ble_on_disc_svc(uint16_t                     conn_handle,
   return 0;
 }
 
-/*static int ble_on_disc_svc(uint16_t                     conn_handle,*/
-/*                           const struct ble_gatt_error *error,*/
-/*                           const struct ble_gatt_svc *svc, void *arg) {*/
-/*  if (error->status == 0) {*/
-/*    ESP_LOGI(TAG, "Discovered service with UUID: %s", SERVICE_UUID_STRING);*/
-/*    service_handle = svc->start_handle;*/
-/*  } else {*/
-/*    ESP_LOGE(TAG, "Service discovery failed with status: %d",
- * error->status);*/
-/*  }*/
-/**/
-/*  // Discover characteristics within the discovered service range*/
-/*  int rc = ble_gattc_disc_all_chrs(conn_handle, svc->start_handle,*/
-/*                                   svc->end_handle, ble_on_disc_chr, NULL);*/
-/*  if (rc != 0) {*/
-/*    ESP_LOGE(TAG, "Characteristic discovery failed with rc = %d", rc);*/
-/*  }*/
-/*  return rc;*/
-/*}*/
-
-/*static int ble_on_disc_chr(const struct ble_gatt_error *error,*/
-/*                           const struct ble_gatt_chr *chr, void *arg) {*/
-/*  if (error->status == 0) {*/
-/*    ESP_LOGI(TAG, "Discovered characteristic with UUID: %s",*/
-/*             CHARACTERISTIC_UUID_1);*/
-/*    characteristic_handle_1 = chr->def_handle;*/
-/**/
-/*    ESP_LOGI(TAG, "Discovered characteristic with UUID: %s",*/
-/*             CHARACTERISTIC_UUID_2);*/
-/*    characteristic_handle_2 = chr->def_handle;*/
-/*  }*/
-/*  return 0;*/
-/*}*/
-
 // Characteristic discovery callback with correct function signature
 static int ble_on_disc_chr(uint16_t                     conn_handle,
                            const struct ble_gatt_error *error,
                            const struct ble_gatt_chr *chr, void *arg) {
-  ESP_LOGI(TAG, "entering ble_chr_cb");
-
   char uuid_str[BLE_UUID_STR_LEN];  // buffer to hold the string representation
                                     // of UUID
   if (error->status == 0) {
@@ -154,20 +101,23 @@ static int ble_on_disc_chr(uint16_t                     conn_handle,
       }
     }
 
+    /* SUBSCRIBE FUNCTION. */
     // Handle notifications using write_flat
-    uint8_t notification_value[2] = {0x01, 0x00};  // Enable notifications
-    int     rc                    = ble_gattc_write_flat(
-        conn_handle,
-        characteristic_handle_2 +
-            1,  // Assuming CCCD is right after the characteristic
-        notification_value, sizeof(notification_value), ble_on_write_cb, NULL);
-    if (rc != 0) {
-      ESP_LOGE(TAG, "Failed to write to CCCD to enable notifications, rc=%d",
-               rc);
-    } else {
-      ESP_LOGI(TAG, "Subscribed to notifications on CHARACTERISTIC_UUID_2");
-    }
-
+    /*uint8_t notification_value[2] = {0x01, 0x00};  // Enable notifications*/
+    /*int     rc                    = ble_gattc_write_flat(*/
+    /*    conn_handle,*/
+    /*    characteristic_handle_2 +*/
+    /*        1,  // Assuming CCCD is right after the characteristic*/
+    /*    notification_value, sizeof(notification_value), ble_on_write_cb,
+     * NULL);*/
+    /**/
+    /*if (rc != 0) {*/
+    /*  ESP_LOGE(TAG, "Failed to write to CCCD to enable notifications,
+     * rc=%d",*/
+    /*           rc);*/
+    /*} else {*/
+    /*  ESP_LOGI(TAG, "Subscribed to notifications on CHARACTERISTIC_UUID_2");*/
+    /*}*/
   } else {
     ESP_LOGE(TAG, "Characteristic discovery failed with status: %d",
              error->status);
@@ -186,70 +136,31 @@ static int ble_on_write_cb(uint16_t                     conn_handle,
   return 0;
 }
 
-/*// Callback for reading characteristic value*/
-/*static int ble_on_read(uint16_t conn_handle, const struct ble_gatt_error
- * *error,*/
-/*                       struct ble_gatt_attr *attr, void *arg) {*/
-/*  if (error->status == 0) {*/
-/*    ESP_LOGI(TAG, "Read characteristic value: %.*s", attr->om->om_len,*/
-/*             attr->om->om_data);*/
-/*  } else {*/
-/*    ESP_LOGE(TAG, "Error reading characteristic with status: %d",*/
-/*             error->status);*/
-/*  }*/
-/*  return 0;*/
-/*}*/
-
-// Callback when notifications are received from the server
-/*static int ble_on_notify(struct ble_gap_event *event, void *arg) {*/
-/*  if (event->type == BLE_GAP_EVENT_NOTIFY_RX) {*/
-/*    // Print the received data as a string*/
-/*    ESP_LOGI(TAG, "Received notification: %.*s",
- * event->notify_rx.om->om_len,*/
-/*             (char *)event->notify_rx.om->om_data);*/
-/*  }*/
-/*  return 0;*/
-/*}*/
-
-// Notification callback to handle incoming string data
 static int ble_on_notify(struct ble_gap_event *event, void *arg) {
-  ESP_LOGI(TAG, "Notification callback triggered");
+  // Check if it's a notification (not an indication)
+  if (event->notify_rx.indication == 0) {
+    ESP_LOGI(TAG, "Notification received from characteristic handle: %d",
+             event->notify_rx.attr_handle);
 
-  /*if (error->status == 0) {*/
-  /*  ESP_LOGI(TAG, "Notification received, conn_handle: %d", conn_handle);*/
-  /**/
-  /*  // Check the length of the data and ensure it's null-terminated for
-   * safety*/
-  /*  if (attr->om->om_len > 0) {*/
-  /*    char received_str[attr->om->om_len + 1];*/
-  /*    memcpy(received_str, attr->om->om_data, attr->om->om_len);*/
-  /*    received_str[attr->om->om_len] = '\0';  // Null-terminate the string*/
-  /**/
-  /*    // Print the received string*/
-  /*    ESP_LOGI(TAG, "Received string: %s", received_str);*/
-  /*  } else {*/
-  /*    ESP_LOGI(TAG, "No data received.");*/
-  /*  }*/
-  /*} else {*/
-  /*  ESP_LOGE(TAG, "Failed to receive notification, status: %d",
-   * error->status);*/
-  /*}*/
+    static char data_buffer[512];
+    static int  buffer_offset = 0;
 
+    struct os_mbuf *om =
+        event->notify_rx.om;            // Get the data from the notification
+    uint16_t len = OS_MBUF_PKTLEN(om);  // Get the length of the data
+
+    // Buffer to store the data
+    char received_data[len + 1];        // +1 for null termination
+    memset(received_data, 0, len + 1);  // Clear the buffer
+
+    // Copy the data from the os_mbuf to our buffer
+    ble_hs_mbuf_to_flat(om, received_data, sizeof(received_data), NULL);
+
+    // Log the received data
+    ESP_LOGI(TAG, "Received notification: %s", received_data);
+  }
   return 0;
 }
-
-// Notification handler callback
-/*static int ble_on_notify(uint16_t                     conn_handle,*/
-/*                         const struct ble_gatt_error *error,*/
-/*                         struct ble_gatt_attr *attr, void *arg) {*/
-/*  if (error->status == 0) {*/
-/*    ESP_LOGI(TAG, "Received notification: %.*s", attr->om->om_len,*/
-/*             attr->om->om_data);*/
-/*  } else {*/
-/*    ESP_LOGE(TAG, "Notification error: %d", error->status);*/
-/*  }*/
-/*  return 0;*/
-/*}*/
 
 // Function to discover services and characteristics
 static void discover_services_and_characteristics() {
@@ -260,15 +171,6 @@ static void discover_services_and_characteristics() {
     ESP_LOGE(TAG, "Service discovery failed with rc = %d", rc);
     return;
   }
-
-  /*// Discover characteristics*/
-  /*rc = ble_gattc_disc_all_chrs(conn_handle, service_handle, service_handle +
-   * 1,*/
-  /*                             ble_on_disc_chr, NULL);*/
-  /*if (rc != 0) {*/
-  /*  ESP_LOGE(TAG, "Characteristic discovery failed with rc = %d", rc);*/
-  /*  return;*/
-  /*}*/
 }
 
 // Callback function for BLE events (connected, disconnected, etc.)
@@ -284,6 +186,7 @@ static int ble_gap_event(struct ble_gap_event *event, void *arg) {
         return 0;
       }
 
+      // Connect to determined ble server
       if (fields.name_len > 0) {
         ESP_LOGI(TAG, "Name: %.*s\n", fields.name_len, fields.name);
 
@@ -309,25 +212,39 @@ static int ble_gap_event(struct ble_gap_event *event, void *arg) {
       if (event->connect.status == 0) {
         ESP_LOGI(TAG, "Connected to device!");
         conn_handle = event->connect.conn_handle;
+
+        ble_gattc_exchange_mtu(event->connect.conn_handle, mtu_exchange_cb,
+                               NULL);
+
+        // Search for the services and characteristics
         discover_services_and_characteristics();
+
       } else {
         ESP_LOGI(TAG, "Failed to connect, status = %d", event->connect.status);
-        /*esp_restart();*/
       }
       break;
 
     case BLE_GAP_EVENT_DISCONNECT:
       ESP_LOGI(TAG, "Disconnected from device");
-      /*esp_restart();*/
       break;
 
     case BLE_GAP_EVENT_NOTIFY_RX:
-      ESP_LOGI(TAG, "ble on notify will be triggered");
       ble_on_notify(event, arg);
       break;
 
     default:
       break;
+  }
+  return 0;
+}
+
+static int mtu_exchange_cb(uint16_t                     conn_handle,
+                           const struct ble_gatt_error *error, void *arg) {
+  if (error->status == 0) {
+    ESP_LOGI("BLE", "MTU exchange successful, MTU: %d",
+             ble_att_mtu(conn_handle));
+  } else {
+    ESP_LOGE("BLE", "MTU exchange failed, error code: %d", error->status);
   }
   return 0;
 }
@@ -376,6 +293,10 @@ void ble_init(void) {
 
   // Initialize BLE client
   nimble_port_init();
+  int rc = ble_att_set_preferred_mtu(64);  // Set larger MTU size
+  if (rc != 0) {
+    ESP_LOGE(TAG, "The MTU is not 64");
+  }
   ble_hs_cfg.sync_cb = start_ble_scan;
 
   /* Set the default device name. */
