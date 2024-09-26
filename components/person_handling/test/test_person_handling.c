@@ -11,52 +11,18 @@ jparse_ctx_t   jctx;
 
 Person_t* persons;
 
-TEST_CASE("i2c init", "[person][comm]") {
-  TEST_ASSERT_EQUAL(ESP_OK, i2c_init());
-}
-
-TEST_CASE("memory allocated dynamically for Person", "[person]") {
-  TEST_ASSERT_EQUAL(ESP_OK, allocate_person_dynamically(&persons, &capacity));
-}
-
-TEST_CASE("add persons into dynamic memory", "[person]") {
-  TEST_ASSERT_EQUAL(ESP_OK, allocate_person_dynamically(&persons, &capacity));
-
-  Person_t p1 = {111, "ragil", 90, 80};
-  Person_t p2 = {222, "ahmad", -20, -70};
-
-  add_person(&persons, &p1, &current_size);
-  printf("Person 1 ID: %u\n", persons[0].id);
-  printf("Person 1 Name: %s\n", persons[0].name);
-  printf("Person 1 X: %d\n", persons[0].pos_x);
-  printf("Person 1 Y: %d\n", persons[0].pos_y);
-
-  TEST_ASSERT_EQUAL_UINT16(111, persons[0].id);
-  TEST_ASSERT_EQUAL_STRING("ragil", persons[0].name);
-  TEST_ASSERT_EQUAL_INT16(90, persons[0].pos_x);
-  TEST_ASSERT_EQUAL_INT16(80, persons[0].pos_y);
-
-  add_person(&persons, &p2, &current_size);
-  printf("Person 2 ID: %u\n", persons[1].id);
-  printf("Person 2 Name: %s\n", persons[1].name);
-  printf("Person 2 X: %d\n", persons[1].pos_x);
-  printf("Person 2 Y: %d\n", persons[1].pos_y);
-
-  TEST_ASSERT_EQUAL_UINT16(222, persons[1].id);
-  TEST_ASSERT_EQUAL_STRING("ahmad", persons[1].name);
-  TEST_ASSERT_EQUAL_INT16(-20, persons[1].pos_x);
-  TEST_ASSERT_EQUAL_INT16(-70, persons[1].pos_y);
-
-  free(persons);
-  current_size = 0;
-}
-
 TEST_CASE("deserialize JSON and add Person_t to array", "[person]") {
-  TEST_ASSERT_EQUAL(ESP_OK, allocate_person_dynamically(&persons, &capacity));
+  /*TEST_ASSERT_EQUAL(ESP_OK, allocate_person_dynamically(&persons,
+   * &capacity));*/
 
   Person_t    p_new;
   const char* json_test_str =
       "{\"name\": \"ragil\", \"id\": 12, \"pos_x\": 50, \"pos_y\": 60}";
+
+  /*const char* another_json_test_str =*/
+  /*    "{" name ":" Ibnu "," id ":2," pos_x ":295," pos_y ":59}";*/
+
+  printf("%s\n", json_test_str);
 
   // Parsing start
   TEST_ASSERT_EQUAL(
@@ -67,12 +33,12 @@ TEST_CASE("deserialize JSON and add Person_t to array", "[person]") {
   json_parse_end(&jctx);
   // parsing end
 
-  add_person(&persons, &p_new, &current_size);
+  /*add_person(&persons, &p_new, &current_size);*/
 
-  TEST_ASSERT_EQUAL_STRING("ragil", persons[0].name);
-  TEST_ASSERT_EQUAL_INT(12, persons[0].id);
-  TEST_ASSERT_EQUAL_INT(50, persons[0].pos_x);
-  TEST_ASSERT_EQUAL_INT(60, persons[0].pos_y);
+  TEST_ASSERT_EQUAL_STRING("ragil", p_new.name);
+  TEST_ASSERT_EQUAL_INT(12, p_new.id);
+  TEST_ASSERT_EQUAL_INT(50, p_new.pos_x);
+  TEST_ASSERT_EQUAL_INT(60, p_new.pos_y);
 
   free(persons);
 }
@@ -116,4 +82,48 @@ TEST_CASE("serialized_data queue can be filled", "[person]") {
   TEST_ASSERT_EQUAL_STRING(s3, received_item);
 
   vQueueDelete(serialized_json_data_queue);
+}
+
+/* ON PROGRESS. NOT YET IMPLEMENTED */
+TEST_CASE("get data from serialized queue, convert it, and put in person queue",
+          "[person]") {
+  QueueHandle_t serialized_json_data_queue = xQueueCreate(5, SIZE_OF_BLE_MTU);
+  TEST_ASSERT_NOT_NULL(serialized_json_data_queue);
+
+  QueueHandle_t person_data_q = xQueueCreate(5, sizeof(Person_t));
+  TEST_ASSERT_NOT_NULL(person_data_q);
+
+  const char* s1 =
+      "{\"name\": \"ragil\", \"id\": 12, \"pos_x\": 50, \"pos_y\": 60}";
+
+  const char* s2 =
+      "{\"name\": \"barkowi\", \"id\": 19, \"pos_x\": -15, \"pos_y\": -20}";
+
+  const char* s3 =
+      "{\"name\": \"tara\", \"id\": 39, \"pos_x\": -11, \"pos_y\": 70}";
+
+  TEST_ASSERT_EQUAL(pdPASS,
+                    xQueueSend(serialized_json_data_queue, &s1, portMAX_DELAY));
+  TEST_ASSERT_EQUAL(pdPASS,
+                    xQueueSend(serialized_json_data_queue, &s2, portMAX_DELAY));
+  TEST_ASSERT_EQUAL(pdPASS,
+                    xQueueSend(serialized_json_data_queue, &s3, portMAX_DELAY));
+
+  TEST_ASSERT_EQUAL(3, uxQueueMessagesWaiting(serialized_json_data_queue));
+
+  Person_t temp_person;
+
+  // while serialize queue is available
+  while (uxQueueMessagesWaiting(serialized_json_data_queue) > 0) {
+    char data[128];
+
+    TEST_ASSERT_EQUAL(
+        pdPASS, xQueueReceive(serialized_json_data_queue, data, portMAX_DELAY));
+
+    temp_person = deserialize_person(&jctx, data);
+
+    TEST_ASSERT_EQUAL(pdPASS, xQueueSend(person_data_q, data, portMAX_DELAY));
+  }
+
+  TEST_ASSERT_EQUAL(3, uxQueueMessagesWaiting(person_data_q));
 }

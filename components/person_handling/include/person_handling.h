@@ -9,6 +9,7 @@
 #include "json_parser.h"
 #include "nvs_flash.h"
 #include "string.h"
+
 /* BLE */
 #include "console/console.h"
 #include "host/ble_hs.h"
@@ -22,10 +23,13 @@
 #define INITIAL_PERSON_CAPACITY 4
 #define NAME_LENGTH             50
 #define MAX_PERSON_COUNT        4
+#define SIZE_OF_BLE_MTU         64
 
 #define PIN_I2C_SCL    22
 #define PIN_I2C_SDA    27
 #define I2C_SLAVE_ADDR 0x08
+
+extern QueueHandle_t serialized_json_data_queue;
 
 typedef struct {
   uint16_t id;
@@ -42,15 +46,6 @@ Person_t deserialize_person(jparse_ctx_t *jctx, const char *json);
  * Perhaps these functions need to be depreciated.
  * since person management is using queue.
  */
-// esp_err_t i2c_init(void);
-//
-// esp_err_t allocate_person_dynamically(Person_t **person, uint8_t *capacity);
-//
-// esp_err_t add_person(Person_t **persons, Person_t *new_person,
-//                      uint8_t *current_size);
-//
-// esp_err_t delete_person(Person_t **persons, int *size, int id);
-//
-// void add_random_person_to_queue(QueueHandle_t person_queue);
+esp_err_t i2c_init(void);
 
 #endif  // !PERSON_HANDLING_H_

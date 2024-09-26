@@ -50,20 +50,20 @@ static void menu_event_handler(lv_event_t *e) {
       lv_screen_load(home_screen);
       printf("switch to home screen\n");
       ESP_LOGI(TAG, "Switched to Home Screen");
-      vTaskSuspend(add_rand_person_handler);
+      /*vTaskSuspend(add_rand_person_handler);*/
       break;
 
     case SEARCH:
       lv_screen_load(search_screen);
       ESP_LOGI(TAG, "Switched to Search Screen");
       // TODO: add flag that you're on search screen
-      vTaskResume(add_rand_person_handler);
+      /*vTaskResume(add_rand_person_handler);*/
       break;
 
     case SETTINGS:
       lv_screen_load(setting_screen);
       ESP_LOGI(TAG, "Switched to Settings Screen");
-      vTaskSuspend(add_rand_person_handler);
+      /*vTaskSuspend(add_rand_person_handler);*/
       break;
 
     default:

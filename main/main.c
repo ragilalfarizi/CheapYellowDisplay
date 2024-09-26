@@ -13,12 +13,14 @@
 void lvgl_display_task(void *pvParameter);
 void add_rand_person_task(void *pvParameter);
 // void radar_display_task(void *pvParameter);
+void convert_serialized_data_task(void *pvParameter);
 
 /* TASK HANDLER DECLARATION */
-TaskHandle_t lvgl_display_handler    = NULL;
-TaskHandle_t radar_display_handler   = NULL;
-TaskHandle_t add_rand_person_handler = NULL;
-TaskHandle_t BLE_handler             = NULL;
+TaskHandle_t lvgl_display_handler       = NULL;
+TaskHandle_t radar_display_handler      = NULL;
+TaskHandle_t add_rand_person_handler    = NULL;
+TaskHandle_t BLE_handler                = NULL;
+TaskHandle_t convert_serialized_handler = NULL;
 
 /* GLOBAL VARIABLES */
 Person_t             person;
@@ -30,29 +32,23 @@ QueueHandle_t     person_data_q;
 SemaphoreHandle_t display_mutex;
 
 void app_main(void) {
-  /**********************************************/
-  /* BLUETOOTH LOW ENERGY INITIALIZATION START */
+  /* BLUETOOTH LOW ENERGY INITIALIZATION */
   ble_init();
-  /**********************************************/
-  /* BLUETOOTH LOW ENERGY INITIALIZATION DONE */
 
-  // TODO: change the size into the lenght of upcoming serialized json data
-  serialized_json_data_queue = xQueueCreate(5, sizeof(char *));
+  /* SERIALIZED JSON DATA QUEUE INIT */
+  serialized_json_data_queue = xQueueCreate(5, SIZE_OF_BLE_MTU);
   if (serialized_json_data_queue == NULL) {
     ESP_LOGE(TAG, "Failed to create serialized queue");
     return;
   }
 
+  /* PERSON DATA QUEUE INIT */
   person_data_q = xQueueCreate(5, sizeof(Person_t));
   if (person_data_q == NULL) {
     ESP_LOGE(TAG, "Failed to create person queue");
     return;
   }
-
-  display_mutex = xSemaphoreCreateMutex();
-  if (display_mutex == NULL) {
-    ESP_LOGE(TAG, "Failed to create person queue");
-  }
+  
 
   /* LCD HW initialization */
   ESP_LOGI(TAG, "Entering LCD_INIT");
@@ -75,12 +71,15 @@ void app_main(void) {
 
   xTaskCreatePinnedToCore(lvgl_display_task, "LVGL Display Task", 5120, NULL, 5,
                           &lvgl_display_handler, 0);
-  // xTaskCreatePinnedToCore(radar_display_task, "Radar Display Task", 2048,
-  // NULL,
-  //                         3, &radar_display_handler, 1);
   ESP_LOGI(TAG, "creating rand_person task");
-  xTaskCreatePinnedToCore(add_rand_person_task, "add random person to queue",
-                          2048, person_data_q, 3, &add_rand_person_handler, 1);
+  /*xTaskCreatePinnedToCore(add_rand_person_task, "add random person to
+   * queue",*/
+  /*                        2048, person_data_q, 3, &add_rand_person_handler,
+   * 1);*/
+
+  xTaskCreatePinnedToCore(convert_serialized_data_task,
+                          "convert serialized data", 3072, NULL, 3,
+                          &convert_serialized_handler, 1);
 
   // vTaskSuspend(add_rand_person_handler);
 }
@@ -94,62 +93,72 @@ void lvgl_display_task(void *pvParameter) {
   }
 }
 
-// OPTIMIZE: will be depreciated
-void radar_display_task(void *pvParameter) {
-  ESP_LOGI(TAG, "Entering radar display task");
+void convert_serialized_data_task(void *pvParameter) {
+  jparse_ctx_t jctx;
+  Person_t     temp_person;
+  char         temp_json[128];
 
   while (1) {
-    // CREATE MUTEX
-    if (xSemaphoreTake(display_mutex, portMAX_DELAY) == pdTRUE) {
-      ESP_LOGI(TAG, "display mutex is available in main task.");
-      if (xQueueReceive(person_data_q, &person, 0) == pdPASS) {
-        draw_dot_info(&person);
+    if (xQueueReceive(serialized_json_data_queue, temp_json,
+                      pdMS_TO_TICKS(2000))) {
+      ESP_LOGI(TAG, "serialized json has been put into temp json");
+      ESP_LOGI(TAG, "temp_json : %s", temp_json);
 
-        printf("trying to give the semaphore");
-        if (xSemaphoreGive(display_mutex) == pdTRUE) {
-          ESP_LOGI(TAG, "display mutex is given away first by task");
-        }
+      temp_person = deserialize_person(&jctx, temp_json);
+
+      ESP_LOGI(TAG, "Name -> %s \t ID -> %d \t POS_X -> %d \t POS_Y -> %d",
+               temp_person.name, temp_person.id, temp_person.pos_x,
+               temp_person.pos_y);
+
+      if (xQueueSend(person_data_q, &temp_person, pdMS_TO_TICKS(2000))) {
+        ESP_LOGI(TAG, "Success move data to person queue");
+      } else {
+        ESP_LOGI(TAG, "Failed to move data to person queue");
       }
-    }
-
-    vTaskDelay(pdMS_TO_TICKS(1));
-  }
-}
-
-void add_rand_person_task(void *pvParameter) {
-  QueueHandle_t person_queue = (QueueHandle_t)pvParameter;
-  if (person_queue == NULL) {
-    ESP_LOGE(TAG, "Failed to pass person queue to random person task");
-    return;
-  }
-
-  Person_t person;
-
-  // seed the random generator
-  srand(time(NULL));
-
-  while (1) {
-    // generate random person data
-    person.id = rand() % 1001;  // random ID between 0 and 1000
-    snprintf(person.name, sizeof(person.name), "Person_%d", person.id);
-    person.pos_x =
-        (rand() & 201) - 100;  // random X position between -100 to 100
-    person.pos_y =
-        (rand() & 201) - 100;  // random Y position between -100 to 100
-
-    // send person data to the queue
-    if (xQueueSend(person_queue, &person, portMAX_DELAY) != pdPASS) {
-      ESP_LOGE(TAG, "Failed to add person to the queue");
-    }
-
-    if (uxQueueSpacesAvailable(person_queue) == 0) {
-      ESP_LOGI(TAG, "Queue is full!");
     } else {
-      ESP_LOGI(TAG, "Queue has space available: %d",
-               uxQueueSpacesAvailable(person_queue));
+      ESP_LOGI(TAG, "No serialized data received");
     }
 
-    // delay between adding persons
-    vTaskDelay(pdMS_TO_TICKS(2000));
+    vTaskDelay(pdMS_TO_TICKS(100));
   }
 }
+
+// OPTIMIZE: will be depreciated soon
+/**/
+/*void add_rand_person_task(void *pvParameter) {*/
+/*  QueueHandle_t person_queue = (QueueHandle_t)pvParameter;*/
+/*  if (person_queue == NULL) {*/
+/*    ESP_LOGE(TAG, "Failed to pass person queue to random person task");*/
+/*    return;*/
+/*  }*/
+/**/
+/*  Person_t person;*/
+/**/
+/*  // seed the random generator*/
+/*  srand(time(NULL));*/
+/**/
+/*  while (1) {*/
+/*    // generate random person data*/
+/*    person.id = rand() % 1001;  // random ID between 0 and 1000*/
+/*    snprintf(person.name, sizeof(person.name), "Person_%d", person.id);*/
+/*    person.pos_x =*/
+/*        (rand() & 201) - 100;  // random X position between -100 to 100*/
+/*    person.pos_y =*/
+/*        (rand() & 201) - 100;  // random Y position between -100 to 100*/
+/**/
+/*    // send person data to the queue*/
+/*    if (xQueueSend(person_queue, &person, portMAX_DELAY) != pdPASS) {*/
+/*      ESP_LOGE(TAG, "Failed to add person to the queue");*/
+/*    }*/
+/**/
+/*    if (uxQueueSpacesAvailable(person_queue) == 0) {*/
+/*      ESP_LOGI(TAG, "Queue is full!");*/
+/*    } else {*/
+/*      ESP_LOGI(TAG, "Queue has space available: %d",*/
+/*               uxQueueSpacesAvailable(person_queue));*/
+/*    }*/
+/**/
+/*    // delay between adding persons*/
+/*    vTaskDelay(pdMS_TO_TICKS(2000));*/
+/*  }*/
+/*}*/

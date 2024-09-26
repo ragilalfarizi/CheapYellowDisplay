@@ -2,10 +2,6 @@
 
 i2c_master_dev_handle_t dev_handle;
 
-/******************************************************************************
- * START OF WORK IN PROGRESS
- *****************************************************************************/
-
 static const char *TAG                = "BLE_Client";
 static const char *remote_device_name = "bleUWB";
 
@@ -158,6 +154,14 @@ static int ble_on_notify(struct ble_gap_event *event, void *arg) {
 
     // Log the received data
     ESP_LOGI(TAG, "Received notification: %s", received_data);
+
+    // TODO: Send the notification to the queue
+    if (xQueueSend(serialized_json_data_queue, &received_data,
+                   pdMS_TO_TICKS(3000)) == pdPASS) {
+      ESP_LOGI(TAG, "%s has been sent to the queue", received_data);
+    } else {
+      ESP_LOGI(TAG, "%s failed to be send to the queue", received_data);
+    }
   }
   return 0;
 }
@@ -293,7 +297,7 @@ void ble_init(void) {
 
   // Initialize BLE client
   nimble_port_init();
-  int rc = ble_att_set_preferred_mtu(64);  // Set larger MTU size
+  int rc = ble_att_set_preferred_mtu(SIZE_OF_BLE_MTU);  // Set larger MTU size
   if (rc != 0) {
     ESP_LOGE(TAG, "The MTU is not 64");
   }
@@ -303,9 +307,6 @@ void ble_init(void) {
   ble_svc_gap_device_name_set("nimble-blecent");
   nimble_port_freertos_init(ble_host_task);
 }
-/******************************************************************************
- * END OF WORK IN PROGRESS
- *****************************************************************************/
 
 esp_err_t i2c_init(void) {
   /* INSTALL I2C MASTER BUS CONFIG */
@@ -333,72 +334,6 @@ esp_err_t i2c_init(void) {
 
   return ESP_OK;
 }
-
-/*// NOTE: maybe depreciated since we use queue eventually*/
-/*esp_err_t allocate_person_dynamically(Person_t **person, uint8_t *capacity)
- * {*/
-/*  *person = malloc(*capacity * sizeof(Person_t));*/
-/*  if (person == NULL) {*/
-/*    ESP_LOGE(TAG, "Failed to allocate memory for persons array");*/
-/*    return ESP_FAIL;*/
-/**/
-/*    ESP_LOGI(TAG, "Succesfully created dynamic allocation for Person");*/
-/*    return ESP_OK;*/
-/*  }*/
-/*}*/
-/**/
-/*// NOTE: maybe depreciated since we use queue eventually*/
-/*esp_err_t add_person(Person_t **persons, Person_t *new_person,*/
-/*                     uint8_t *current_size) {*/
-/*  // TODO: check*/
-/**/
-/*  (*persons)[*current_size] = *new_person;*/
-/*  (*current_size)++;*/
-/*  // // do something*/
-/*  // if (*size >= *capacity) {*/
-/*  //   *capacity *= 2;*/
-/*  //   Person_t *temp = realloc(*persons, *capacity * sizeof(Person_t));*/
-/*  //   if (temp == NULL) {*/
-/*  //     ESP_LOGE(TAG, "Failed to reallocate memory");*/
-/*  //     return ESP_FAIL;*/
-/*  //   }*/
-/*  //   *persons = temp;*/
-/*  // }*/
-/*  //*/
-/*  // // add new person*/
-/*  // (*persons)[*size].id = id;*/
-/*  // strncpy((*persons)[*size].name, name, sizeof((*persons)[*size].name)
- * -*/
-/*  // 1);*/
-/*  // (*persons)[*size].name[sizeof((*persons)[*size].name) - 1] =*/
-/*  //     '\0';  // Ensure null-termination*/
-/*  // (*persons)[*size].pos_x = pos_x;*/
-/*  // (*persons)[*size].pos_y = pos_y;*/
-/*  // (*size)++;*/
-/*  //*/
-/*  return ESP_OK;*/
-/*}*/
-/**/
-/*// NOTE: maybe depreciated since we use queue eventually*/
-/*esp_err_t delete_person(Person_t **persons, int *size, int id) {*/
-/*  for (int i = 0; i < *size; i++) {*/
-/*    if ((*persons)[i].id == id) {*/
-/*      // Shift the remaining elements*/
-/*      for (int j = i; j < *size - 1; j++) {*/
-/*        (*persons)[j] = (*persons)[j + 1];*/
-/*      }*/
-/**/
-/*      // Decrease the size*/
-/*      (*size)--;*/
-/**/
-/*      // Optionally, resize the array down if a lot of space is unused*/
-/*      // (not necessary for the functionality, but can be done for
- * efficiency)*/
-/*    }*/
-/*  }*/
-/**/
-/*  return ESP_OK;*/
-/*}*/
 
 Person_t deserialize_person(jparse_ctx_t *jctx, const char *json) {
   Person_t new_p;
